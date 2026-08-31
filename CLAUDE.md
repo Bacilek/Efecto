@@ -60,7 +60,9 @@ Data (`db/db.ts`):
 - `Routine { id, name, emoji?, order, activeDays: WeekdayIndex[], time?, archived, createdAt }`
   - `emoji` optional single emoji, shown as the column header (falls back to `name`).
   - `activeDays` = which weekdays it applies to (0=Mon..6=Sun).
-  - `time` optional "H:MM", **only** used to order columns (`compareRoutines`).
+  - `order` primary column sort, set by dragging the header cells.
+  - `time` optional "H:MM", only a tie-breaker after `order` (`compareRoutines`);
+    editable only for an existing routine, not in the create form.
 - `Entry { id: "${routineId}|${dateISO}", routineId, date, status, updatedAt }`
   - Only explicit marks are stored. No entry = pending (or off / derived-missed).
 
@@ -75,8 +77,9 @@ Tap cycles the **stored** status: `undefined → done → missed → busy → un
 (`nextStatus`). 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
 done" (blue).
 
-`RoutineEditor` (bottom sheet): emoji, name, time, 7 weekday toggles, delete (also
-wipes that routine's entries). New routine via the "+ rutina" header button.
+`RoutineEditor` (bottom sheet): emoji, name, time (edit only), 7 weekday toggles,
+delete (also wipes that routine's entries). New routine via the "+ rutina" header
+button. Drag a column header sideways to reorder (`onReorder` → rewrites `order`).
 
 Completion stats (`features/routines/stats.ts`): `pct = done / applied` where
 "applied" = every non-`off` cell. `busy` / `missed` / past-unmarked count against
@@ -88,7 +91,6 @@ and the grid re-renders.
 
 ## Not yet done / known simplifications
 
-- No routine reordering UI (only `time` + insertion `order`).
 - `archived` flag exists but nothing sets it (delete is hard-delete).
 - Todos / Calendar are stubs.
 - No sync, no auth, no notifications.

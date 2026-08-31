@@ -45,11 +45,11 @@ export function timeToMinutes(time: string | undefined): number {
   return (h || 0) * 60 + (m || 0)
 }
 
-/** Column ordering: by time (blank last), then manual order, then name. */
+/** Column ordering: manual `order` (set by drag), then time, then name. */
 export function compareRoutines(a: Routine, b: Routine): number {
+  if (a.order !== b.order) return a.order - b.order
   const ta = timeToMinutes(a.time)
   const tb = timeToMinutes(b.time)
   if (ta !== tb) return ta - tb
-  if (a.order !== b.order) return a.order - b.order
   return a.name.localeCompare(b.name)
 }

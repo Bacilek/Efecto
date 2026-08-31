@@ -82,6 +82,12 @@ export function RoutineTrackerScreen() {
     setEditor(null)
   }
 
+  async function reorderRoutines(ids: string[]) {
+    await db.transaction('rw', db.routines, () =>
+      Promise.all(ids.map((id, i) => db.routines.update(id, { order: i }))),
+    )
+  }
+
   async function deleteRoutine() {
     const target = editor?.routine
     if (!target) return
@@ -118,6 +124,7 @@ export function RoutineTrackerScreen() {
           entries={entryMap}
           onTapCell={(r, d) => void tapCell(r, d)}
           onEditRoutine={(r) => setEditor({ routine: r })}
+          onReorder={(ids) => void reorderRoutines(ids)}
         />
       )}
 

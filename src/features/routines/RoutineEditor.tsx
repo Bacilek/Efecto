@@ -84,14 +84,18 @@ export function RoutineEditor({
           </div>
         </div>
 
-        <label className="mb-1 block text-xs text-muted">Čas (volitelně, řadí sloupce)</label>
-        <input
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          placeholder="7:40"
-          inputMode="numeric"
-          className="mb-3 w-24 rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
-        />
+        {routine && (
+          <>
+            <label className="mb-1 block text-xs text-muted">Čas (volitelně)</label>
+            <input
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              placeholder="7:40"
+              inputMode="numeric"
+              className="mb-3 w-24 rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
+            />
+          </>
+        )}
 
         <label className="mb-1.5 block text-xs text-muted">Platí ve dnech</label>
         <div className="mb-4 flex gap-1.5">
