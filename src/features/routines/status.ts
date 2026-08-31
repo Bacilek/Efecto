@@ -21,16 +21,19 @@ export function resolveCellState(
   return toISODate(date) < todayISO ? 'missed' : 'pending'
 }
 
-/** Tap cycle for the STORED status. pending → done → busy → missed → (cleared). */
+/**
+ * Tap cycle for the STORED status: pending → done → missed → busy → (cleared).
+ * 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be done" (blue).
+ */
 export function nextStatus(current: RoutineStatus | undefined): RoutineStatus | undefined {
   switch (current) {
     case undefined:
       return 'done'
     case 'done':
-      return 'busy'
-    case 'busy':
       return 'missed'
     case 'missed':
+      return 'busy'
+    case 'busy':
       return undefined
   }
 }

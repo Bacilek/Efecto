@@ -34,10 +34,15 @@ export function RoutineGrid({
                   onClick={() => onEditRoutine(r)}
                   className="flex h-16 w-12 flex-col items-center justify-end pb-1.5"
                   title={r.name}
+                  aria-label={r.name}
                 >
-                  <span className="max-h-14 w-4 rotate-180 truncate text-[11px] leading-tight text-muted [writing-mode:vertical-rl]">
-                    {r.name}
-                  </span>
+                  {r.emoji ? (
+                    <span className="text-xl leading-none">{r.emoji}</span>
+                  ) : (
+                    <span className="max-h-14 w-4 rotate-180 truncate text-[11px] leading-tight text-muted [writing-mode:vertical-rl]">
+                      {r.name}
+                    </span>
+                  )}
                 </button>
               </th>
             ))}

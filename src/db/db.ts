@@ -6,6 +6,8 @@ export type RoutineStatus = 'done' | 'busy' | 'missed'
 export interface Routine {
   id: string
   name: string
+  /** single emoji shown as the column header (falls back to `name` if unset) */
+  emoji?: string
   /** manual sort order (lower first); tie-break after `time` */
   order: number
   /** weekdays the routine applies to, 0=Mon .. 6=Sun */

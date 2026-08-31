@@ -56,6 +56,7 @@ export function RoutineTrackerScreen() {
     if (target) {
       await db.routines.update(target.id, {
         name: draft.name,
+        emoji: draft.emoji || undefined,
         time: draft.time || undefined,
         activeDays: draft.activeDays,
       })
@@ -64,6 +65,7 @@ export function RoutineTrackerScreen() {
       await db.routines.add({
         id: newId(),
         name: draft.name,
+        emoji: draft.emoji || undefined,
         order: maxOrder + 1,
         activeDays: draft.activeDays,
         time: draft.time || undefined,
@@ -130,8 +132,8 @@ function Legend() {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pt-4 text-[11px] text-muted">
       <Item cls="border-done bg-done-dim" label="splněno" />
-      <Item cls="border-busy bg-busy-dim" label="nestihnuto" />
       <Item cls="border-missed bg-missed-dim" label="nesplněno" />
+      <Item cls="border-busy bg-busy-dim" label="nestihnuto" />
       <Item cls="border-brass-dim" label="čeká" />
       <span className="flex items-center gap-1.5">
         <span className="text-dim">–</span> neplatí

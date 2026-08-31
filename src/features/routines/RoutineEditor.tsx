@@ -5,6 +5,7 @@ import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
 
 export interface RoutineDraft {
   name: string
+  emoji: string
   time: string
   activeDays: WeekdayIndex[]
 }
@@ -24,11 +25,13 @@ export function RoutineEditor({
   onClose: () => void
 }) {
   const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('')
   const [time, setTime] = useState('')
   const [activeDays, setActiveDays] = useState<WeekdayIndex[]>(ALL_DAYS)
 
   useEffect(() => {
     setName(routine?.name ?? '')
+    setEmoji(routine?.emoji ?? '')
     setTime(routine?.time ?? '')
     setActiveDays(routine?.activeDays ?? ALL_DAYS)
   }, [routine])
@@ -42,7 +45,7 @@ export function RoutineEditor({
   function submit() {
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave({ name: trimmed, time: time.trim(), activeDays })
+    onSave({ name: trimmed, emoji: emoji.trim(), time: time.trim(), activeDays })
   }
 
   return (
@@ -57,15 +60,29 @@ export function RoutineEditor({
           {routine ? 'Upravit rutinu' : 'Nová rutina'}
         </h2>
 
-        <label className="mb-1 block text-xs text-muted">Název</label>
-        <input
-          autoFocus={!routine}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="např. Ranní běh"
-          className="mb-3 w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
-        />
+        <div className="mb-3 flex gap-2">
+          <div>
+            <label className="mb-1 block text-xs text-muted">Emoji</label>
+            <input
+              value={emoji}
+              onChange={(e) => setEmoji(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="🏃"
+              className="w-14 rounded-md border border-line bg-panel-2 px-3 py-2 text-center text-base outline-none focus:border-muted"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-muted">Název</label>
+            <input
+              autoFocus={!routine}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="např. Ranní běh"
+              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
+            />
+          </div>
+        </div>
 
         <label className="mb-1 block text-xs text-muted">Čas (volitelně, řadí sloupce)</label>
         <input

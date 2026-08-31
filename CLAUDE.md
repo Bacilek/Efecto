@@ -57,7 +57,8 @@ Horizontally scrollable; day column and header row are sticky. Today's row is
 highlighted. `WeekNav` moves between weeks.
 
 Data (`db/db.ts`):
-- `Routine { id, name, order, activeDays: WeekdayIndex[], time?, archived, createdAt }`
+- `Routine { id, name, emoji?, order, activeDays: WeekdayIndex[], time?, archived, createdAt }`
+  - `emoji` optional single emoji, shown as the column header (falls back to `name`).
   - `activeDays` = which weekdays it applies to (0=Mon..6=Sun).
   - `time` optional "H:MM", **only** used to order columns (`compareRoutines`).
 - `Entry { id: "${routineId}|${dateISO}", routineId, date, status, updatedAt }`
@@ -70,11 +71,12 @@ Cell state (`features/routines/status.ts` → `resolveCellState`):
    day" behaviour, done at render time, no cron/service worker)
 4. no entry, today or later → **pending**
 
-Tap cycles the **stored** status: `undefined → done → busy → missed → undefined`
-(`nextStatus`). 1 tap = done, 2 = busy ("couldn't be done"), 3 = missed.
+Tap cycles the **stored** status: `undefined → done → missed → busy → undefined`
+(`nextStatus`). 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
+done" (blue).
 
-`RoutineEditor` (bottom sheet): name, time, 7 weekday toggles, delete (also wipes
-that routine's entries). New routine via the "+ rutina" header button.
+`RoutineEditor` (bottom sheet): emoji, name, time, 7 weekday toggles, delete (also
+wipes that routine's entries). New routine via the "+ rutina" header button.
 
 Live data via `dexie-react-hooks` `useLiveQuery` — mutations just write to Dexie
 and the grid re-renders.
