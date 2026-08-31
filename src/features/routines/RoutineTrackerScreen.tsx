@@ -63,7 +63,6 @@ export function RoutineTrackerScreen() {
       await db.routines.update(target.id, {
         name: draft.name,
         emoji: draft.emoji || undefined,
-        time: draft.time || undefined,
         activeDays: draft.activeDays,
       })
     } else {
@@ -74,7 +73,6 @@ export function RoutineTrackerScreen() {
         emoji: draft.emoji || undefined,
         order: maxOrder + 1,
         activeDays: draft.activeDays,
-        time: draft.time || undefined,
         archived: false,
         createdAt: Date.now(),
       })

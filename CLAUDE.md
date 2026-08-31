@@ -61,8 +61,8 @@ Data (`db/db.ts`):
   - `emoji` optional single emoji, shown as the column header (falls back to `name`).
   - `activeDays` = which weekdays it applies to (0=Mon..6=Sun).
   - `order` primary column sort, set by dragging the header cells.
-  - `time` optional "H:MM", only a tie-breaker after `order` (`compareRoutines`);
-    editable only for an existing routine, not in the create form.
+  - `time` optional "H:MM", legacy — only a tie-breaker after `order`
+    (`compareRoutines`). No UI writes it any more; seed still sets it.
 - `Entry { id: "${routineId}|${dateISO}", routineId, date, status, updatedAt }`
   - Only explicit marks are stored. No entry = pending (or off / derived-missed).
 
@@ -77,8 +77,8 @@ Tap cycles the **stored** status: `undefined → done → missed → busy → un
 (`nextStatus`). 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
 done" (blue).
 
-`RoutineEditor` (bottom sheet): emoji, name, time (edit only), 7 weekday toggles,
-delete (also wipes that routine's entries). New routine via the "+ rutina" header
+`RoutineEditor` (bottom sheet): emoji, name, 7 weekday toggles, delete (also wipes
+that routine's entries). New routine via the "+ rutina" header
 button. Drag a column header sideways to reorder: the grabbed icon follows the
 pointer 1:1 while the other columns slide to their live target slots
 (`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`

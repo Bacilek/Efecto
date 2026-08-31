@@ -6,7 +6,6 @@ import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
 export interface RoutineDraft {
   name: string
   emoji: string
-  time: string
   activeDays: WeekdayIndex[]
 }
 
@@ -26,13 +25,11 @@ export function RoutineEditor({
 }) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('')
-  const [time, setTime] = useState('')
   const [activeDays, setActiveDays] = useState<WeekdayIndex[]>(ALL_DAYS)
 
   useEffect(() => {
     setName(routine?.name ?? '')
     setEmoji(routine?.emoji ?? '')
-    setTime(routine?.time ?? '')
     setActiveDays(routine?.activeDays ?? ALL_DAYS)
   }, [routine])
 
@@ -45,7 +42,7 @@ export function RoutineEditor({
   function submit() {
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave({ name: trimmed, emoji: emoji.trim(), time: time.trim(), activeDays })
+    onSave({ name: trimmed, emoji: emoji.trim(), activeDays })
   }
 
   return (
@@ -83,19 +80,6 @@ export function RoutineEditor({
             />
           </div>
         </div>
-
-        {routine && (
-          <>
-            <label className="mb-1 block text-xs text-muted">Čas (volitelně)</label>
-            <input
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              placeholder="7:40"
-              inputMode="numeric"
-              className="mb-3 w-24 rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
-            />
-          </>
-        )}
 
         <label className="mb-1.5 block text-xs text-muted">Platí ve dnech</label>
         <div className="mb-4 flex gap-1.5">
