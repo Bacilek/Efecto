@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Provisional Efecto icon: brass frame + serif "E" on ink. -->
+  <rect width="512" height="512" fill="#12141c"/>
+  <rect x="64" y="64" width="384" height="384" rx="40"
+        fill="none" stroke="#c08a3e" stroke-width="12"/>
+  <text x="50%" y="50%" dy="0.02em" text-anchor="middle" dominant-baseline="central"
+        font-family="Georgia, 'Times New Roman', serif" font-weight="700"
+        font-size="300" fill="#ede9de">E</text>
+</svg>
