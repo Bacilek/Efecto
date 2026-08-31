@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Entry, Routine } from '@/db/db'
 import { entryId } from '@/db/db'
 import { cn } from '@/lib/cn'
@@ -6,6 +6,14 @@ import { DAY_LABELS, formatShort, isSameDay, toISODate, todayISO } from '@/lib/d
 import { Cell } from './Cell'
 import { dayCompletion } from './stats'
 import { resolveCellState } from './status'
+
+type DragState = { id: string; dx: number; from: number; to: number; w: number }
+
+function arrayMove<T>(arr: T[], from: number, to: number): T[] {
+  const copy = arr.slice()
+  copy.splice(to, 0, copy.splice(from, 1)[0])
+  return copy
+}
 
 export function RoutineGrid({
   dates,
@@ -20,62 +28,86 @@ export function RoutineGrid({
   entries: Map<string, Entry>
   onTapCell: (routine: Routine, dateISO: string) => void
   onEditRoutine: (routine: Routine) => void
-  /** new routine id order after a drag; identical order means "no change" */
+  /** new routine id order after a drag */
   onReorder: (ids: string[]) => void
 }) {
   const now = new Date()
   const today = todayISO()
 
-  // Column drag-to-reorder. The grabbed header follows the pointer 1:1 via
-  // translateX; the reorder is computed from the final position on drop.
+  // Column drag-to-reorder. The grabbed header follows the pointer 1:1; the other
+  // columns slide to their new slots live (via `visualRoutines`) while dragging.
   // Pointer-based so it works on touch; `touch-pan-y` keeps vertical scroll.
-  const thRefs = useRef(new Map<string, HTMLTableCellElement>())
-  const dragRef = useRef<{ id: string; startX: number; lastX: number; dragging: boolean } | null>(
-    null,
-  )
+  const grabRef = useRef<{ id: string; startX: number; from: number; w: number; moved: boolean } | null>(null)
+  const dragStateRef = useRef<DragState | null>(null)
+  const settleRef = useRef<string | null>(null)
   const didDragRef = useRef(false)
-  const [drag, setDrag] = useState<{ id: string; dx: number } | null>(null)
+  const [drag, setDragRaw] = useState<DragState | null>(null)
+
+  function setDrag(next: DragState | null) {
+    dragStateRef.current = next
+    setDragRaw(next)
+  }
+
+  const visualRoutines = useMemo(
+    () => (drag && drag.from !== drag.to ? arrayMove(routines, drag.from, drag.to) : routines),
+    [routines, drag],
+  )
+
+  // Once the persisted order matches the drop target, drop the drag overlay.
+  useEffect(() => {
+    if (settleRef.current && routines.map((r) => r.id).join('|') === settleRef.current) {
+      settleRef.current = null
+      dragStateRef.current = null
+      setDragRaw(null)
+    }
+  }, [routines])
 
   function onPointerDown(e: React.PointerEvent, r: Routine) {
     if (routines.length < 2) return
-    dragRef.current = { id: r.id, startX: e.clientX, lastX: e.clientX, dragging: false }
+    const rect = e.currentTarget.getBoundingClientRect()
+    grabRef.current = {
+      id: r.id,
+      startX: e.clientX,
+      from: routines.findIndex((x) => x.id === r.id),
+      w: rect.width || 48,
+      moved: false,
+    }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    const d = dragRef.current
-    if (!d) return
-    if (!d.dragging && Math.abs(e.clientX - d.startX) < 6) return
-    d.dragging = true
+    const g = grabRef.current
+    if (!g) return
+    const dx = e.clientX - g.startX
+    if (!g.moved && Math.abs(dx) < 6) return
+    g.moved = true
     didDragRef.current = true
-    d.lastX = e.clientX
     e.preventDefault()
-    setDrag({ id: d.id, dx: e.clientX - d.startX })
+    const shift = Math.round(dx / g.w)
+    const to = Math.max(0, Math.min(routines.length - 1, g.from + shift))
+    setDrag({ id: g.id, dx, from: g.from, to, w: g.w })
   }
 
   function endDrag() {
-    const d = dragRef.current
-    dragRef.current = null
-    setDrag(null)
-    if (d?.dragging) commitReorder(d.id, d.lastX)
-  }
-
-  function commitReorder(id: string, pointerX: number) {
-    const ids = routines.map((r) => r.id)
-    let to = ids.length
-    for (let i = 0; i < ids.length; i++) {
-      const rect = thRefs.current.get(ids[i])?.getBoundingClientRect()
-      if (rect && pointerX < rect.left + rect.width / 2) {
-        to = i
-        break
-      }
+    const g = grabRef.current
+    grabRef.current = null
+    const cur = dragStateRef.current
+    if (!g?.moved || !cur || cur.to === cur.from) {
+      setDrag(null)
+      return
     }
-    const from = ids.indexOf(id)
-    ids.splice(from, 1)
-    if (from < to) to -= 1
-    if (to === from) return
-    ids.splice(to, 0, id)
+    const ids = arrayMove(routines, cur.from, cur.to).map((r) => r.id)
+    settleRef.current = ids.join('|')
+    // hold the reordered view; the grabbed icon rests in its new slot
+    setDrag({ ...cur, dx: (cur.to - cur.from) * cur.w })
     onReorder(ids)
+    // safety net if the persisted order never comes back as expected
+    window.setTimeout(() => {
+      if (settleRef.current === ids.join('|')) {
+        settleRef.current = null
+        setDrag(null)
+      }
+    }, 400)
   }
 
   return (
@@ -84,15 +116,8 @@ export function RoutineGrid({
         <thead>
           <tr>
             <th className="sticky left-0 z-20 bg-ink" />
-            {routines.map((r) => (
-              <th
-                key={r.id}
-                ref={(el) => {
-                  if (el) thRefs.current.set(r.id, el)
-                  else thRefs.current.delete(r.id)
-                }}
-                className="bg-ink p-0"
-              >
+            {visualRoutines.map((r) => (
+              <th key={r.id} className="bg-ink p-0">
                 <button
                   type="button"
                   onPointerDown={(e) => onPointerDown(e, r)}
@@ -108,7 +133,11 @@ export function RoutineGrid({
                   }}
                   style={
                     drag?.id === r.id
-                      ? { transform: `translateX(${drag.dx}px)`, position: 'relative', zIndex: 40 }
+                      ? {
+                          transform: `translateX(${drag.dx - (drag.to - drag.from) * drag.w}px)`,
+                          position: 'relative',
+                          zIndex: 40,
+                        }
                       : undefined
                   }
                   className="flex h-16 w-12 touch-pan-y select-none flex-col items-center justify-end pb-1.5"
@@ -153,7 +182,7 @@ export function RoutineGrid({
                     {day.total ? `${day.pct} %` : '–'}
                   </div>
                 </th>
-                {routines.map((r) => {
+                {visualRoutines.map((r) => {
                   const entry = entries.get(entryId(r.id, dISO))
                   const state = resolveCellState(r, date, entry, today)
                   return (

@@ -79,8 +79,10 @@ done" (blue).
 
 `RoutineEditor` (bottom sheet): emoji, name, time (edit only), 7 weekday toggles,
 delete (also wipes that routine's entries). New routine via the "+ rutina" header
-button. Drag a column header sideways (it follows the pointer 1:1) to reorder;
-the new index is computed from the drop position (`onReorder` → rewrites `order`).
+button. Drag a column header sideways to reorder: the grabbed icon follows the
+pointer 1:1 while the other columns slide to their live target slots
+(`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`
+rewrites every `order` and the overlay is held until the persisted order matches.
 
 Completion stats (`features/routines/stats.ts`): `pct = done / applied` where
 "applied" = every non-`off` cell. `busy` / `missed` / past-unmarked count against
