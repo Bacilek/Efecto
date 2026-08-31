@@ -3,6 +3,7 @@ import { entryId } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, formatShort, isSameDay, toISODate, todayISO } from '@/lib/date'
 import { Cell } from './Cell'
+import { dayCompletion } from './stats'
 import { resolveCellState } from './status'
 
 export function RoutineGrid({
@@ -52,21 +53,27 @@ export function RoutineGrid({
           {dates.map((date, i) => {
             const isToday = isSameDay(date, now)
             const dISO = toISODate(date)
+            const day = dayCompletion(routines, date, entries, today)
             return (
               <tr key={dISO}>
                 <th
                   scope="row"
                   className={cn(
-                    'sticky left-0 z-10 border-t border-line-soft px-3 text-left',
+                    'sticky left-0 z-10 border-t border-line-soft px-3 text-left align-middle',
                     isToday ? 'bg-today' : 'bg-ink',
                   )}
                 >
-                  <span
-                    className={cn('text-[13px]', isToday ? 'text-brass' : 'text-parchment')}
-                  >
-                    {DAY_LABELS[i]}
-                  </span>{' '}
-                  <span className="font-mono text-[11px] text-muted">{formatShort(date)}</span>
+                  <div className="whitespace-nowrap">
+                    <span
+                      className={cn('text-[13px]', isToday ? 'text-brass' : 'text-parchment')}
+                    >
+                      {DAY_LABELS[i]}
+                    </span>{' '}
+                    <span className="font-mono text-[11px] text-muted">{formatShort(date)}</span>
+                  </div>
+                  <div className="font-mono text-[10px] text-dim">
+                    {day.total ? `${day.pct} %` : '–'}
+                  </div>
                 </th>
                 {routines.map((r) => {
                   const entry = entries.get(entryId(r.id, dISO))

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, entryId, newId, type Entry, type Routine } from '@/db/db'
-import { toISODate } from '@/lib/date'
+import { toISODate, todayISO } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { RoutineGrid } from './RoutineGrid'
@@ -9,6 +9,7 @@ import { RoutineEditor, type RoutineDraft } from './RoutineEditor'
 import { WeekNav } from './WeekNav'
 import { useWeek } from './useWeek'
 import { compareRoutines, nextStatus } from './status'
+import { weekCompletion } from './stats'
 
 type EditorTarget = { routine: Routine | null } | null
 
@@ -33,6 +34,11 @@ export function RoutineTrackerScreen() {
     for (const e of weekEntries ?? []) m.set(e.id, e)
     return m
   }, [weekEntries])
+
+  const weekStats = useMemo(
+    () => weekCompletion(routines ?? [], week.dates, entryMap, todayISO()),
+    [routines, week.dates, entryMap],
+  )
 
   async function tapCell(routine: Routine, dateISO: string) {
     const id = entryId(routine.id, dateISO)
@@ -101,6 +107,7 @@ export function RoutineTrackerScreen() {
         }
       />
       <WeekNav week={week} />
+      <WeekSummary pct={weekStats.pct} done={weekStats.done} total={weekStats.total} />
 
       {routines && routines.length === 0 ? (
         <EmptyState title="Žádné rutiny." hint={'Přidej první přes „+ rutina".'} />
@@ -125,6 +132,22 @@ export function RoutineTrackerScreen() {
         />
       )}
     </>
+  )
+}
+
+function WeekSummary({ pct, done, total }: { pct: number; done: number; total: number }) {
+  return (
+    <div className="px-4 pb-2">
+      <div className="mb-1 flex items-baseline justify-between text-[11px]">
+        <span className="text-muted">Splněno tento týden</span>
+        <span className="font-mono text-muted">
+          {done}/{total} · <span className="text-parchment">{pct} %</span>
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
+        <div className="h-full rounded-full bg-brass" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   )
 }
 

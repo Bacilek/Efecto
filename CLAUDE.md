@@ -78,6 +78,11 @@ done" (blue).
 `RoutineEditor` (bottom sheet): emoji, name, time, 7 weekday toggles, delete (also
 wipes that routine's entries). New routine via the "+ rutina" header button.
 
+Completion stats (`features/routines/stats.ts`): `pct = done / applied` where
+"applied" = every non-`off` cell. `busy` / `missed` / past-unmarked count against
+it. Each day row shows its `%` under the date; a bar under `WeekNav` shows the
+week total (`weekCompletion` = sum over the 7 days).
+
 Live data via `dexie-react-hooks` `useLiveQuery` — mutations just write to Dexie
 and the grid re-renders.
 
