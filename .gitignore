@@ -14,6 +14,7 @@ dist-ssr
 
 # vite / pwa
 dev-dist
+*.tsbuildinfo
 
 # capacitor native projects (generated with `npx cap add`)
 /android
