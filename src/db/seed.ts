@@ -27,6 +27,27 @@ const SEED: SeedRoutine[] = [
   { name: 'Jít spát', emoji: '😴', time: '23:00', activeDays: ALL },
 ]
 
+/**
+ * Backfill `emoji` on routines created before emojis existed. Matches the known
+ * seed names; runs once (guarded by a `meta` flag). Safe to keep around — it
+ * never overwrites an emoji the user already set.
+ */
+export async function backfillEmojis(): Promise<void> {
+  const done = await db.meta.get('emojiBackfill')
+  if (done) return
+
+  const byName = new Map(SEED.map((s) => [s.name, s.emoji]))
+  await db.transaction('rw', db.routines, db.meta, async () => {
+    const all = await db.routines.toArray()
+    for (const r of all) {
+      if (r.emoji) continue
+      const emoji = byName.get(r.name)
+      if (emoji) await db.routines.update(r.id, { emoji })
+    }
+    await db.meta.put({ key: 'emojiBackfill', value: Date.now() })
+  })
+}
+
 export async function seedIfEmpty(): Promise<void> {
   const count = await db.routines.count()
   if (count > 0) return
