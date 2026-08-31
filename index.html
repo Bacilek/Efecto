@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deník</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#12141c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deník">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12141c;
+    --panel:#1a1d28;
+    --panel-2:#20232f;
+    --line:#2c3040;
+    --line-soft:#232634;
+    --parchment:#ede9de;
+    --muted:#8b8e9e;
+    --dim:#4a4d5c;
+    --brass:#c08a3e;
+    --brass-dim:#7a5a2c;
+    --sage:#7a9b76;
+    --sage-dim:#3f5240;
+    --today:#262a3a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:24px 16px 56px;}
+  .masthead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;}
+  .masthead h1{font-family:'Fraunces',serif;font-weight:500;font-size:24px;margin:0;}
+  .weeknav{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);}
+  .weeknav button{
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:4px;padding:3px 9px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;
+  }
+  .weeknav button:hover{border-color:var(--brass-dim);color:var(--brass);}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:8px;}
+  table{width:100%;border-collapse:collapse;min-width:640px;}
+  thead th{
+    font-family:'Inter',sans-serif;font-weight:500;font-size:12.5px;color:var(--muted);
+    padding:10px 6px;text-align:center;border-bottom:1px solid var(--line);
+    background:var(--panel);
+  }
+  thead th.daycol.today{color:var(--brass);}
+  thead th:first-child{text-align:left;padding-left:14px;width:230px;}
+  tbody td{border-bottom:1px solid var(--line-soft);padding:8px 6px;text-align:center;}
+  tbody tr:hover{background:var(--panel);}
+  tbody td.today{background:var(--today);}
+  .taskcell{display:flex;align-items:baseline;gap:9px;text-align:left;padding-left:14px !important;}
+  .time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);flex:none;width:38px;}
+  .txt{font-size:13.5px;}
+  .box{
+    width:17px;height:17px;margin:0 auto;
+    border:1.5px solid var(--brass-dim);border-radius:3px;
+    position:relative;cursor:pointer;
+  }
+  .box.done{background:var(--sage-dim);border-color:var(--sage);}
+  .box.done::after{
+    content:'';position:absolute;left:4px;top:0px;width:5px;height:9px;
+    border:solid var(--sage);border-width:0 2px 2px 0;transform:rotate(45deg);
+  }
+  .box.off{border-color:var(--dim);cursor:default;}
+  .box.off::after{content:'–';position:static;border:none;color:var(--dim);
+    display:flex;align-items:center;justify-content:center;height:100%;transform:none;font-size:12px;}
+  .addrow{display:flex;gap:8px;margin-top:16px;}
+  .addrow input{
+    flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--parchment);font-family:'Inter',sans-serif;font-size:13px;padding:7px 10px;
+  }
+  .addrow input::placeholder{color:var(--muted);}
+  .addrow button{
+    background:transparent;border:1px solid var(--brass-dim);color:var(--brass);
+    border-radius:4px;padding:0 14px;font-size:13px;cursor:pointer;
+  }
+  .addrow button:hover{background:var(--brass-dim);color:var(--parchment);}
+  .del{font-size:11px;color:var(--dim);cursor:pointer;margin-left:6px;}
+  .del:hover{color:var(--muted);}
+  .footer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:22px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1>Deník</h1>
+    <div class="weeknav">
+      <button id="prevWeek">‹</button>
+      <span id="weekLabel">–</span>
+      <button id="nextWeek">›</button>
+    </div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="bodyRows"></tbody>
+    </table>
+  </div>
+
+  <div class="addrow">
+    <input type="text" placeholder="přidat vlastní úkol (platí každý den v týdnu)" id="newItemInput">
+    <button id="addItemBtn">Přidat</button>
+  </div>
+
+  <div class="footer-note">Ukládá se automaticky po týdnech.</div>
+</div>
+
+<script>
+const DAYS = ["Po","Út","St","Čt","Pá","So","Ne"];
+const ALL = [0,1,2,3,4,5,6];
+const WEEKDAYS = [0,1,2,3,4];
+const WEEKEND = [5,6];
+const GYMDAYS = [0,1,3,4];
+
+const BASE_ITEMS = [
+  {id:"letrox", time:"6:00", txt:"Letrox nalačno", days:ALL},
+  {id:"gym", time:"7:40", txt:"Gym", days:GYMDAYS},
+  {id:"prace", time:"9:40", txt:"Práce / SOC", days:WEEKDAYS},
+  {id:"godot", time:"19:00", txt:"Godot / Claude Code", days:ALL},
+  {id:"wizardwars", time:"20:00", txt:"Wizard Wars", days:ALL},
+  {id:"studium", time:"20:00", txt:"Studium / úkoly", days:WEEKDAYS},
+  {id:"trading", time:"21:00", txt:"Trading review", days:ALL},
+  {id:"kalorie", time:"", txt:"Kalorie goal", days:ALL},
+  {id:"protein", time:"", txt:"Protein goal", days:ALL},
+  {id:"kreatin", time:"", txt:"Kreatin", days:ALL},
+  {id:"dnd", time:"", txt:"D&D session", days:WEEKEND},
+  {id:"spanek", time:"23:00", txt:"Jít spát", days:ALL},
+];
+
+function timeSortVal(t){ return t ? t : "99:99"; }
+function sortedItems(list){
+  return [...list].sort((a,b)=> timeSortVal(a.time).localeCompare(timeSortVal(b.time)));
+}
+
+function mondayOf(d){
+  const dt = new Date(d);
+  const dow = dt.getDay() === 0 ? 7 : dt.getDay();
+  dt.setDate(dt.getDate() - (dow-1));
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+function isoStr(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function fmtShort(d){
+  return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");
+}
+
+let weekMonday = mondayOf(new Date());
+let customItems = [];
+let checks = {};
+
+async function loadCustom(){
+  try{
+    const raw = localStorage.getItem("custom_items");
+    customItems = raw ? JSON.parse(raw) : [];
+  }catch(e){ customItems = []; }
+}
+async function saveCustom(){
+  try{ localStorage.setItem("custom_items", JSON.stringify(customItems)); }catch(e){}
+}
+async function loadWeek(){
+  try{
+    const raw = localStorage.getItem("week:"+isoStr(weekMonday));
+    checks = raw ? JSON.parse(raw) : {};
+  }catch(e){ checks = {}; }
+}
+async function saveWeek(){
+  try{ localStorage.setItem("week:"+isoStr(weekMonday), JSON.stringify(checks)); }catch(e){}
+}
+
+function allItems(){ return [...BASE_ITEMS, ...customItems]; }
+
+function todayIndex(){
+  const now = new Date();
+  const monday = mondayOf(now);
+  if(monday.getTime() !== weekMonday.getTime()) return -1;
+  const dow = now.getDay() === 0 ? 7 : now.getDay();
+  return dow-1;
+}
+
+function render(){
+  const label = fmtShort(weekMonday)+" – "+fmtShort(new Date(weekMonday.getTime()+6*86400000));
+  document.getElementById("weekLabel").textContent = label;
+
+  const tIdx = todayIndex();
+
+  const head = document.getElementById("headRow");
+  head.innerHTML = "<th></th>" + DAYS.map((d,i)=>{
+    const dt = new Date(weekMonday.getTime()+i*86400000);
+    return `<th class="daycol${i===tIdx?' today':''}">${d}<br><span style="font-family:'JetBrains Mono',monospace;font-weight:400;">${fmtShort(dt)}</span></th>`;
+  }).join("");
+
+  const items = sortedItems(allItems());
+  const body = document.getElementById("bodyRows");
+  body.innerHTML = "";
+
+  items.forEach(it=>{
+    const tr = document.createElement("tr");
+    let cells = `<td class="taskcell"><span class="txt">${it.txt}</span>${it.custom?`<span class="del" data-del="${it.id}">smazat</span>`:""}</td>`;
+    for(let i=0;i<7;i++){
+      const active = it.days.includes(i);
+      const key = it.id+"_"+i;
+      const done = !!checks[key];
+      cells += `<td class="${i===tIdx?'today':''}"><div class="box${active?(done?' done':''):' off'}" data-key="${active?key:''}"></div></td>`;
+    }
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll(".box").forEach(b=>{
+    if(b.classList.contains("off")) return;
+    b.addEventListener("click", ()=>{
+      const key = b.dataset.key;
+      checks[key] = !checks[key];
+      saveWeek();
+      render();
+    });
+  });
+
+  body.querySelectorAll("[data-del]").forEach(d=>{
+    d.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      const id = d.dataset.del;
+      customItems = customItems.filter(ci=>ci.id!==id);
+      saveCustom();
+      render();
+    });
+  });
+}
+
+async function addCustomItem(){
+  const input = document.getElementById("newItemInput");
+  const txt = input.value.trim();
+  if(!txt) return;
+  customItems.push({id:"c"+Date.now(), time:"", txt, days:ALL, custom:true});
+  await saveCustom();
+  input.value = "";
+  render();
+}
+
+document.getElementById("addItemBtn").addEventListener("click", addCustomItem);
+document.getElementById("newItemInput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") addCustomItem(); });
+
+document.getElementById("prevWeek").addEventListener("click", async ()=>{
+  weekMonday = new Date(weekMonday.getTime()-7*86400000);
+  await loadWeek();
+  render();
+});
+document.getElementById("nextWeek").addEventListener("click", async ()=>{
+  weekMonday = new Date(weekMonday.getTime()+7*86400000);
+  await loadWeek();
+  render();
+});
+
+(async function init(){
+  await loadCustom();
+  await loadWeek();
+  render();
+})();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
