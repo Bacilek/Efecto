@@ -43,7 +43,7 @@ export function RoutineTrackerScreen() {
   async function tapCell(routine: Routine, dateISO: string) {
     const id = entryId(routine.id, dateISO)
     const current = await db.entries.get(id)
-    const next = nextStatus(current?.status)
+    const next = nextStatus(current?.status, dateISO < todayISO())
     if (next === undefined) {
       await db.entries.delete(id)
     } else {
