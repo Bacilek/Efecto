@@ -94,8 +94,9 @@ rewrites every `order` and the overlay is held until the persisted order matches
 Completion stats (`features/routines/stats.ts`): `pct = done / counted` where
 "counted" = every cell that is neither `off` nor `busy`. `missed` and
 past-unmarked count against it; **`busy` drops out of the ratio entirely**, like
-an off-day, so an excused skip can neither raise nor lower the percentage (a day
-with only `busy` cells has `total === 0` → `pct === 0`). Each day row shows its `%` under the date; a bar under `WeekNav` shows the
+an off-day, so an excused skip can neither raise nor lower the percentage.
+`total === 0` → `pct === 100` (`toPct`): a day with no routines scheduled, or one
+where every routine was excused, leaves nothing outstanding and reads as 100 %. Each day row shows its `%` under the date; a bar under `WeekNav` shows the
 week total (`weekCompletion` = sum over the 7 days).
 
 Live data via `dexie-react-hooks` `useLiveQuery` — mutations just write to Dexie

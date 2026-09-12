@@ -8,12 +8,17 @@ export interface Completion {
   done: number
   /** routines that counted (everything except off-days and excused `busy`) */
   total: number
-  /** `done / total` as a rounded 0..100 percentage; 0 when nothing applied */
+  /** `done / total` as a rounded 0..100 percentage; 100 when nothing counted */
   pct: number
 }
 
+/**
+ * Nothing to do is a day fully done, so an empty ratio is 100 %, not 0 %: a day
+ * with no routines scheduled — or one where every routine was excused — leaves
+ * nothing outstanding and shouldn't read as a total failure.
+ */
 function toPct(done: number, total: number): number {
-  return total === 0 ? 0 : Math.round((done / total) * 100)
+  return total === 0 ? 100 : Math.round((done / total) * 100)
 }
 
 /**

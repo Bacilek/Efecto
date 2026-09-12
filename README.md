@@ -30,6 +30,8 @@ state:
 | 3 | omluveno (busy) | blue | neither — excluded from the % |
 | 4 | zpět na čeká (pending) | — | not yet counted |
 
+- A day with **nothing outstanding is 100 %** — no routines scheduled, or every
+  one of them excused.
 - **Blue = excused.** A routine you had a good reason to skip (ill, travelling)
   is neither a pass nor a fail: it leaves the day's ratio completely, exactly
   like a weekday the routine doesn't apply to.
