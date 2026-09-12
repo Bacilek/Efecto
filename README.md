@@ -44,8 +44,10 @@ state:
 
 ## Timetable
 
-A weekly school timetable: **Mon–Fri, 08:00–20:00**. It's a template — it
-repeats every week and isn't tied to dates.
+A weekly school timetable: **Mon–Fri, 08:00–20:00**, laid out like the routine
+grid — **rows are days, time runs left to right** (scroll sideways; the day
+labels stay put). It's a template: it repeats every week and isn't tied to
+dates.
 
 Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 (LAB, blue)**, and carries a subject code, an optional seminar group and a room —
@@ -55,9 +57,9 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
 - A default timetable is seeded on first run and is fully editable.
-- On a weekday, a line marks the current time and the part of the week that has
-  already happened is dimmed. At the weekend neither is shown — the timetable
-  reads as the week ahead.
+- On a weekday, a vertical line marks the current time and everything to its
+  left — the part of the week that has already happened — is dimmed. At the
+  weekend neither is shown; the timetable reads as the week ahead.
 
 ## Development
 

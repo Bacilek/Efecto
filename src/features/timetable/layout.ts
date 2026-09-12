@@ -8,10 +8,19 @@ export const DAY_END = 20 * 60
 export const DAYS: WeekdayIndex[] = [0, 1, 2, 3, 4]
 export const HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, i) => 8 + i)
 
-/** Row height. One hour of the day is this many pixels tall. */
-export const PX_PER_MIN = 54 / 60
+/**
+ * Rows are days and the horizontal axis is time, matching the routine grid's
+ * reading direction. One minute is one pixel, so an hour column is 60px wide and
+ * a two-hour lesson is 120px — enough for a subject code and a room.
+ */
+export const PX_PER_MIN = 1
+export const ROW_HEIGHT = 52
+export const HEADER_HEIGHT = 16
 
-export const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN
+export const GRID_WIDTH = (DAY_END - DAY_START) * PX_PER_MIN
+export const GRID_HEIGHT = ROW_HEIGHT * DAYS.length
+/** Width of the sticky day-label gutter. */
+export const GUTTER = 36
 
 export const KINDS: LessonKind[] = ['lecture', 'seminar', 'lab']
 
@@ -39,24 +48,30 @@ export const KIND_STYLES: Record<LessonKind, string> = {
   lab: 'border-lab bg-lab-dim',
 }
 
-/** A lesson resolved to pixel offsets inside one day column. */
+/** A lesson resolved to offsets inside its day row. */
 export interface Placed {
   lesson: Lesson
-  top: number
-  height: number
-  /** percentages — overlapping lessons split the column's width between them */
-  left: string
-  width: string
+  /** pixels from the start of the day */
+  left: number
+  width: number
+  /** percentages of the row — overlapping lessons stack within its height */
+  top: string
+  height: string
 }
 
 function clampToWindow(minutes: number): number {
   return Math.min(Math.max(minutes, DAY_START), DAY_END)
 }
 
+function minutesOfDay(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes()
+}
+
 /**
- * Lay one day's lessons out as absolute offsets. Lessons that overlap in time
- * are split side by side — a timetable shouldn't have clashes, but hiding one
- * behind another would make a mistake invisible rather than obvious.
+ * Lay one day's lessons out as offsets within its row. Lessons that overlap in
+ * time are stacked within the row height — a timetable shouldn't have clashes,
+ * but hiding one behind another would make a mistake invisible rather than
+ * obvious.
  */
 export function placeDay(lessons: Lesson[]): Placed[] {
   const sorted = [...lessons].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
@@ -70,11 +85,11 @@ export function placeDay(lessons: Lesson[]): Placed[] {
       const end = clampToWindow(timeToMinutes(lesson.end))
       placed.push({
         lesson,
-        top: (start - DAY_START) * PX_PER_MIN,
-        // keep a very short lesson tall enough to stay tappable
-        height: Math.max(20, (end - start) * PX_PER_MIN),
-        left: `${(i / cluster.length) * 100}%`,
-        width: `${100 / cluster.length}%`,
+        left: (start - DAY_START) * PX_PER_MIN,
+        // keep a very short lesson wide enough to stay tappable
+        width: Math.max(24, (end - start) * PX_PER_MIN),
+        top: `${(i / cluster.length) * 100}%`,
+        height: `${100 / cluster.length}%`,
       })
     }
     cluster = []
@@ -100,21 +115,16 @@ export function placeWeek(lessons: Lesson[]): Record<number, Placed[]> {
   return byDay
 }
 
-/** Minutes since midnight for a `Date`. */
-function minutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes()
-}
-
 /** Where the "now" line sits, or null when it falls outside the grid. */
 export interface NowMarker {
   day: WeekdayIndex
-  /** pixels from the top of the grid */
-  top: number
+  /** pixels from the start of the day */
+  left: number
 }
 
 /**
  * The current time as a grid position. Null at the weekend (the timetable is a
- * weekday template — there is no column to point at) and outside 08:00–20:00.
+ * weekday template — there is no row to point at) and outside 08:00–20:00.
  */
 export function nowMarker(now: Date): NowMarker | null {
   const day = weekdayIndex(now)
@@ -123,32 +133,32 @@ export function nowMarker(now: Date): NowMarker | null {
   const minutes = minutesOfDay(now)
   if (minutes < DAY_START || minutes > DAY_END) return null
 
-  return { day, top: (minutes - DAY_START) * PX_PER_MIN }
+  return { day, left: (minutes - DAY_START) * PX_PER_MIN }
 }
 
 /**
- * How much of a day column is already behind us, in pixels: the full height for
- * a day earlier in the week, a part of today, nothing for what's still ahead.
+ * How much of a day row is already behind us, in pixels: the full width for a
+ * day earlier in the week, a part of today, nothing for what's still ahead.
  *
  * Returns 0 for every day at the weekend. Greying the entire board from Saturday
  * morning would say nothing useful — by then the week reads as the one ahead.
  */
-export function elapsedHeight(day: WeekdayIndex, now: Date): number {
+export function elapsedWidth(day: WeekdayIndex, now: Date): number {
   const today = weekdayIndex(now)
   if (today > 4) return 0
-  if (day < today) return GRID_HEIGHT
+  if (day < today) return GRID_WIDTH
   if (day > today) return 0
 
   const elapsed = (minutesOfDay(now) - DAY_START) * PX_PER_MIN
-  return Math.min(Math.max(elapsed, 0), GRID_HEIGHT)
+  return Math.min(Math.max(elapsed, 0), GRID_WIDTH)
 }
 
 /**
- * Which hour a tap at `y` pixels inside the grid landed on, snapped down. Capped
+ * Which hour a tap at `x` pixels into a day row landed on, snapped down. Capped
  * an hour short of the window's end so the slot always has room for a lesson.
  */
-export function hourAt(y: number): number {
-  const minutes = DAY_START + y / PX_PER_MIN
+export function hourAt(x: number): number {
+  const minutes = DAY_START + x / PX_PER_MIN
   const hour = Math.floor(minutes / 60) * 60
   return Math.min(clampToWindow(hour), DAY_END - 60)
 }

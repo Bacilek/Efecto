@@ -117,6 +117,13 @@ A weekly template, Mon–Fri, 08:00–20:00 (`features/timetable/layout.ts` owns
 that window: `DAY_START`, `DAY_END`, `DAYS`, `PX_PER_MIN`). It repeats every
 week and holds no dates, so it needs no `Entry` equivalent.
 
+Layout: **rows = the 5 weekdays, the horizontal axis is time** — the same
+reading direction as the routine grid. Horizontally scrollable with a sticky
+day-label gutter (`GUTTER`). One minute is one pixel, so an hour is 60px and the
+grid is 720px wide by 260px tall: the whole week fits on a phone without
+vertical scrolling, and a two-hour lesson is 120px — wide enough for its code
+and room.
+
 - `Lesson { id, name, kind, group?, room?, day, start, end, createdAt }` — `day`
   is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
 - `kind` is `lecture` | `seminar` | `lab` — the user's L / C / LAB — and picks the
@@ -125,21 +132,21 @@ week and holds no dates, so it needs no `Entry` equivalent.
   source for all three.
 - `name` is the bare subject code ("PV170"); `group` is the seminar group that
   follows the slash in "MB142/09". The grid renders them as `name/group`.
-- Layout is absolute positioning, not a CSS grid: `placeDay` converts each
-  lesson to `top`/`height` from its minutes. Lessons that overlap in time split
-  the column's width side by side, so a clash stays visible instead of hiding
-  one block behind another.
+- Absolute positioning, not a CSS grid: `placeDay` converts each lesson to
+  `left`/`width` in pixels from its minutes. Lessons that overlap in time stack
+  within the row's height, so a clash stays visible instead of hiding one block
+  behind another.
 - Tap an empty slot to add a lesson prefilled with that hour (`hourAt` snaps the
   tap down to the hour, capped at `DAY_END - 60`); tap a lesson to edit it.
   `LessonEditor` is a bottom sheet mirroring `RoutineEditor`.
-- A brass **"now" line** marks the current time to the minute in today's column,
-  and everything already behind it is dimmed (`bg-ink/60` above the blocks,
-  `pointer-events-none` so it never eats a tap): whole columns for earlier
-  weekdays, a partial one for today. `nowMarker` / `elapsedHeight` in `layout.ts`
+- A vertical brass **"now" line** marks the current time to the minute in
+  today's row, and everything to its left is dimmed (`bg-ink/60` above the
+  blocks, `pointer-events-none` so it never eats a tap): whole rows for earlier
+  weekdays, a partial one for today. `nowMarker` / `elapsedWidth` in `layout.ts`
   do the maths; `lib/useNow.ts` re-renders every 30 s.
   - Both go quiet at the **weekend** — the timetable is a weekday template, so
-    there is no column to point at, and greying all five days from Saturday
-    morning would say nothing useful.
+    there is no row to point at, and greying all five days from Saturday morning
+    would say nothing useful.
   - Outside 08:00–20:00 there is no line; the shading still applies (before
     08:00 nothing of today is dimmed, after 20:00 all of it is).
 - `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
