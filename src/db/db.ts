@@ -78,6 +78,38 @@ export interface Lesson {
   createdAt: number
 }
 
+/**
+ * A named category of todos. Todos are dateless — a folder is the only grouping
+ * they have — so every todo either sits in one or in the "Unsorted" bucket.
+ */
+export interface TodoFolder {
+  id: string
+  name: string
+  /** optional single emoji shown before the name */
+  emoji?: string
+  /** manual sort order (lower first) */
+  order: number
+  createdAt: number
+}
+
+/**
+ * A task with no date or time. Deliberately dateless for now: anything that
+ * belongs on a day goes to the calendar instead.
+ */
+export interface Todo {
+  id: string
+  /** the folder it lives in; unset = "Unsorted" */
+  folderId?: string
+  title: string
+  note?: string
+  done: boolean
+  /** epoch ms of the last tick, kept so completed todos can be ordered */
+  doneAt?: number
+  /** manual sort order within the folder (lower first) */
+  order: number
+  createdAt: number
+}
+
 export interface Meta {
   key: string
   value: unknown
@@ -87,6 +119,8 @@ export const db = new Dexie('efecto') as Dexie & {
   routines: EntityTable<Routine, 'id'>
   entries: EntityTable<Entry, 'id'>
   lessons: EntityTable<Lesson, 'id'>
+  todoFolders: EntityTable<TodoFolder, 'id'>
+  todos: EntityTable<Todo, 'id'>
   meta: EntityTable<Meta, 'key'>
 }
 
@@ -122,6 +156,18 @@ db.version(3)
         l.kind ??= 'lecture'
       }),
   )
+
+// v4 adds todos: named folders plus the tasks inside them. `done` is a boolean
+// (not indexable) and `folderId` may be unset, so both are filtered in JS —
+// the lists are small enough that only `order` is worth an index.
+db.version(4).stores({
+  routines: 'id, order',
+  entries: 'id, routineId, date',
+  lessons: 'id, day',
+  todoFolders: 'id, order',
+  todos: 'id, order',
+  meta: 'key',
+})
 
 export function entryId(routineId: string, dateISO: string): string {
   return `${routineId}|${dateISO}`

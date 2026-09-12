@@ -10,8 +10,8 @@ replaces a pile of productivity tools:
 
 1. **Routine / habit tracker** — the core, built first. Weekly grid.
 2. **Timetable** — a weekly school timetable. Done (v1); see below.
-3. **Todos** — built-in task lists. **Next up.**
-4. **Calendar** — events + a day view (after todos).
+3. **Todos** — built-in task lists, grouped into folders. Done (v1); see below.
+4. **Calendar** — events + a day view. **Next up.**
 5. Later: cloud sync across devices, reminders/notifications, stats.
 
 Design language: minimal, calm, dark, a bit "paper + brass". No clutter, few
@@ -48,7 +48,8 @@ src/
   lib/cn.ts
   lib/time.ts                  # "HH:MM" <-> minutes since midnight
   lib/useNow.ts                # clock hook, re-renders on an interval
-  db/db.ts                     # Dexie schema v3 (routines, entries, lessons, meta)
+  db/db.ts                     # Dexie schema v4 (routines, entries, lessons,
+                               # todoFolders, todos, meta)
   db/seed.ts                   # default routines + the timetable, each inserted
                                # once when its table is empty; plus backfills
   features/
@@ -222,6 +223,43 @@ brass, matching the routine grid — but only in the current week (`showNow`).
   since ids differ per install. Guarded by a `meta` flag; skips any lesson that
   already has exceptions.
 
+## Todos — how it works
+
+Dateless tasks: anything with a fixed day or time belongs in the calendar, not
+here. The only structure is **folders** (categories) — there is no due date, no
+priority, no reminder.
+
+- `TodoFolder { id, name, emoji?, order, createdAt }`
+- `Todo { id, folderId?, title, note?, done, doneAt?, order, createdAt }`
+  - `folderId` unset = the **"Unsorted"** bucket, a section rendered only when
+    it actually holds something. Keeping it optional means a todo never has to
+    wait for a folder to exist, and deleting a folder can't orphan a row into an
+    invisible state.
+  - `order` is per folder — a new todo takes `max(order in that folder) + 1`.
+  - `doneAt` is the tick's timestamp, used to order the completed tail.
+
+`TodosScreen` builds one `Section` per folder (in `order`), plus Unsorted last.
+Inside a section, `sortTodos` keeps open tasks in their manual `order` and
+**sinks ticked ones to the bottom**, newest tick first, struck through and dim —
+so finishing something never makes it vanish, but it stops competing for
+attention. The header shows the count of **open** todos, and a section collapses
+(component state, not persisted).
+
+Adding:
+- the floating round **"+"** above the nav bar is the primary gesture — it opens
+  the sheet prefilled with the first folder;
+- each folder header has its own small `+` that prefills that folder;
+- the screen header's **"+ folder"** creates a category.
+
+`TodoEditor` (bottom sheet, mirroring `RoutineEditor`): task, note, a folder
+picker of pills ("Unsorted" + every folder), and delete. `FolderEditor` is the
+same shape for emoji + name; deleting a folder deletes its todos with it, and
+the confirm names the count.
+
+Tap the checkbox to tick, tap the text to edit, tap a folder's name to edit the
+folder. Live data via `useLiveQuery`, same as the routine grid — no seed, the
+lists start empty.
+
 ## Not yet done / known simplifications
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
@@ -230,7 +268,9 @@ brass, matching the routine grid — but only in the current week (`showNow`).
 - Recurrence stops at weekday sets, weekly counts and week parity. Nothing
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
-- Todos / Calendar are stubs.
+- Todos: no due dates (by design, for now), no reordering by drag, no archive —
+  delete is hard-delete. Folders can't be reordered either.
+- Calendar is a stub.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
   Studio + JDK 17). Steps in README.
@@ -245,6 +285,10 @@ Routines — grid renders 7 day rows + routine columns, today highlighted,
 past-unmarked cells red, off-days grey `–`, tap cycles colours and **survives
 reload**, week nav keeps per-week marks and is clamped to the year, editor
 add/edit/delete works, excused cells leave the `%` alone.
+
+Todos — "+ folder" then "+" adds a task into it, ticking sinks it to the bottom
+struck through, edits and deletes **survive reload**, deleting a folder takes
+its todos, and a todo with no folder shows under "Unsorted".
 
 Timetable — all of 08:00–20:00 fits without scrolling, blocks are coloured by
 kind with no hour line crossing a two-hour lesson, the "now" line sits at the
