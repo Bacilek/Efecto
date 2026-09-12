@@ -39,9 +39,16 @@ week number and whether it's odd or even**. Tap a cell to cycle its state:
   same as red — and rotates red → blue → green.
 - A routine that doesn't apply to a weekday shows a grey `–` and isn't tappable
   (set per-routine in the editor — e.g. a gym split on Mon/Tue/Thu/Fri).
-- Tap a column header to edit the routine — emoji, name, the weekdays it applies
-  to, or delete it (which also removes its marks). Drag a header sideways to
-  reorder the columns.
+- Tap a column header to edit the routine — emoji, name, its schedule, or delete
+  it (which also removes its marks). Drag a header sideways to reorder.
+- **Schedules.** A routine either applies on **set weekdays** (a gym split on
+  Mon/Tue/Thu/Fri) or is a **weekly target** — "3× a week", any day. A target
+  owes no particular day, so no day of it ever turns red on its own and it
+  doesn't affect a single day's percentage; it counts once for the week, and the
+  column header shows how you're doing (`2/3`). Extra sessions don't count above
+  the target.
+- Either kind can be limited to **odd or even weeks**. A routine that doesn't
+  apply this week shows grey `–` all week and its header dims.
 
 ## Timetable
 
@@ -56,6 +63,8 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 
 - Tap any empty slot to add a lesson; it's prefilled with the hour you tapped.
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
+- A lesson can repeat **every week, or in odd or even semester weeks only** —
+  set it under *Repeats*. In a week it doesn't run it shows as a ghost.
 - Lessons that overlap in time are stacked within the day's row, so a clash
   stays visible.
 - A default timetable is seeded on first run and is fully editable.
@@ -99,10 +108,11 @@ Path alias `@/` → `src/`.
 
 Everything is stored locally in IndexedDB (`efecto` database):
 
-- `routines` — `{ id, name, order, activeDays[0..6], time?, archived, createdAt }`
+- `routines` — `{ id, name, order, activeDays[0..6], time?, timesPerWeek?, weeks?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
 - `lessons` — timetable entries, `{ id, name, kind, group?, room?, day, start, end }`
-  plus the per-date exceptions `skipDates?` / `onlyDates?`; `day` is 0=Mon..4=Fri
+  plus `weeks?` and the per-date exceptions `skipDates?` / `onlyDates?`; `day` is
+  0=Mon..4=Fri
 - `meta` — key/value (seed marker, schema version)
 
 Default routines and a default timetable are seeded once on first run — each

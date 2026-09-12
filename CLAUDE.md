@@ -72,9 +72,13 @@ An edge week may spill into the neighbouring year; the limit is the week, not
 the date.
 
 Data (`db/db.ts`):
-- `Routine { id, name, emoji?, order, activeDays: WeekdayIndex[], time?, archived, createdAt }`
+- `Routine { id, name, emoji?, order, activeDays, time?, timesPerWeek?, weeks?, archived, createdAt }`
   - `emoji` optional single emoji, shown as the column header (falls back to `name`).
   - `activeDays` = which weekdays it applies to (0=Mon..6=Sun).
+  - `timesPerWeek` turns the routine into a **weekly target** — see below.
+  - `weeks` restricts it to odd or even **ISO** weeks (the parity `WeekNav`
+    shows). A routine bound to the other parity resolves to `off` all week and
+    its header emoji dims.
   - `order` primary column sort, set by dragging the header cells.
   - `time` optional "H:MM", legacy — only a tie-breaker after `order`
     (`compareRoutines`). No UI writes it any more; seed still sets it.
@@ -82,11 +86,14 @@ Data (`db/db.ts`):
   - Only explicit marks are stored. No entry = pending (or off / derived-missed).
 
 Cell state (`features/routines/status.ts` → `resolveCellState`):
-1. weekday not in `activeDays` → **off** (grey `–`, not tappable)
-2. entry exists → its status: **done** / **busy** / **missed**
-3. no entry, date < today → **missed** (derived — this is the "auto red at end of
+1. `weeks` set and this week is the other parity → **off** for the whole week
+2. `timesPerWeek` set → the entry's status, else **pending**. No day is owed, so
+   every day is markable and **an unmarked past day is not a miss**
+3. weekday not in `activeDays` → **off** (grey `–`, not tappable)
+4. entry exists → its status: **done** / **busy** / **missed**
+5. no entry, date < today → **missed** (derived — this is the "auto red at end of
    day" behaviour, done at render time, no cron/service worker)
-4. no entry, today or later → **pending**
+6. no entry, today or later → **pending**
 
 Tap cycles the status (`nextStatus`). 1 tap = done (green), 2 = missed (red),
 3 = busy (blue).
@@ -99,8 +106,20 @@ Tap cycles the status (`nextStatus`). 1 tap = done (green), 2 = missed (red),
 `busy` means **excused**, not failed: "couldn't be done for a good reason"
 (ill, travelling). It is neither pass nor fail — see the stats below.
 
-`RoutineEditor` (bottom sheet): emoji, name, 7 weekday toggles ("Active on"), delete (also wipes
-that routine's entries). New routine via the "+ routine" header button. Drag a column header sideways to reorder: the grabbed icon follows the
+**Weekly targets** (`timesPerWeek`, e.g. "gym 3× a week"): the obligation is the
+week's count, not any particular day. So they are left out of `dayCompletion`
+entirely — they can't move a single day's percentage — and counted once per week
+in `weekCompletion` as `min(done marks, target) / target`. The cap stops a
+fourth session pushing the week over 100 %. The column header shows `2/3`.
+
+That is also why `nextStatus` takes **`clearsToMissed`**, not "is it past": the
+empty step is only invisible where an empty cell derives red, which a weekly
+target never does. `tapCell` asks `resolveCellState` what an empty cell would
+render as rather than assuming.
+
+`RoutineEditor` (bottom sheet): emoji, name, a **Schedule** picker ("Set days" →
+7 weekday toggles, or "Times a week" → 1–7×), a **Repeats** row (every week /
+odd / even), and delete (also wipes that routine's entries). New routine via the "+ routine" header button. Drag a column header sideways to reorder: the grabbed icon follows the
 pointer 1:1 while the other columns slide to their live target slots
 (`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`
 rewrites every `order` and the overlay is held until the persisted order matches.
@@ -135,6 +154,9 @@ change.
 
 - `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
+- `weeks` restricts a lesson to odd or even **semester** weeks (the parity
+  `SemesterNav` shows), set from the editor's "Repeats" row. A mismatched week
+  renders the lesson as a ghost, like any other exception.
 - `kind` is `lecture` | `seminar` | `lab` — the user's L / C / LAB — and picks the
   block colour (green / yellow / blue, tokens `lecture` / `seminar` / `lab`).
   `KIND_LABELS`, `KIND_NAMES` and `KIND_STYLES` in `layout.ts` are the single
@@ -173,9 +195,11 @@ change.
     week 1, the jump-to-now button is disabled and no marker is drawn.
 - **Per-date exceptions** (`occurrence.ts`) break the weekly rhythm:
   `Lesson.skipDates` cancels individual dates, `Lesson.onlyDates` restricts the
-  lesson to a list. `happensOn` resolves them; note that *having* `onlyDates`
-  makes it a whitelist, so an empty one means "never runs" — otherwise
-  cancelling the last listed date would flip the lesson back to weekly.
+  lesson to a list. `happensOn` applies three rules in a fixed order —
+  `onlyDates` wins outright (naming a date is the most explicit thing there is),
+  then `skipDates`, then `weeks` parity. Note that *having* `onlyDates` makes it
+  a whitelist, so an empty one means "never runs" — otherwise cancelling the
+  last listed date would flip the lesson back to weekly.
   - A lesson that doesn't happen that week is still drawn, as a **ghost**
     (dashed, struck through, dimmed) and still tappable — otherwise a lesson
     with `onlyDates` would be uneditable in every other week.
@@ -197,9 +221,9 @@ change.
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
 - Timetable: colour comes from `kind` only (no per-subject colours) and there is
-  no teacher field. Week parity is *displayed* but a lesson can't be bound to it
-  (an every-other-week lesson needs its dates listed in `onlyDates`). Not linked
-  to the calendar or to routines.
+  no teacher field. Not linked to the calendar or to routines.
+- Recurrence stops at weekday sets, weekly counts and week parity. Nothing
+  monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
 - Todos / Calendar are stubs.
 - No sync, no auth, no notifications.
