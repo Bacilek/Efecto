@@ -6,9 +6,11 @@ import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { TimetableGrid } from './TimetableGrid'
 import { LessonEditor, type LessonDraft } from './LessonEditor'
-import { formatShort, weekParity } from '@/lib/date'
+import { formatShort } from '@/lib/date'
 import { DAY_START, KINDS, KIND_LABELS, KIND_NAMES, KIND_STYLES } from './layout'
-import { semesterStart, semesterWeek } from './semester'
+import { SemesterNav } from './SemesterNav'
+import { semesterEnd, semesterStart, semesterWeekCount } from './semester'
+import { useSemesterWeek } from './useSemesterWeek'
 
 interface EditorTarget {
   /** null = creating a new lesson in the `day` / `start` slot */
@@ -19,7 +21,7 @@ interface EditorTarget {
 
 export function TimetableScreen() {
   const [editor, setEditor] = useState<EditorTarget | null>(null)
-  const week = semesterWeek(new Date())
+  const week = useSemesterWeek()
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
 
   async function saveLesson(draft: LessonDraft) {
@@ -63,14 +65,11 @@ export function TimetableScreen() {
         }
       />
 
-      <p className="px-4 pb-2 text-center font-mono text-[11px] text-muted">
-        {week === null
-          ? `Semester starts ${formatShort(semesterStart())}`
-          : `Semester week ${week} · ${weekParity(week)}`}
-      </p>
+      <SemesterNav week={week} />
 
       <TimetableGrid
         lessons={lessons ?? []}
+        showNow={week.isCurrent}
         onTapLesson={(l) => setEditor({ lesson: l, day: l.day, start: l.start })}
         onTapSlot={(day, startMinutes) =>
           setEditor({ lesson: null, day, start: minutesToTime(startMinutes) })
@@ -90,6 +89,9 @@ export function TimetableScreen() {
         {lessons && lessons.length === 0
           ? 'Tap any slot to add a lesson.'
           : 'Tap a lesson to edit it, or an empty slot to add one.'}
+        {' · '}
+        Semester {formatShort(semesterStart())} – {formatShort(semesterEnd())},{' '}
+        {semesterWeekCount()} weeks
       </p>
 
       {editor && (

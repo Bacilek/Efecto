@@ -21,17 +21,20 @@ import {
 
 export function TimetableGrid({
   lessons,
+  showNow,
   onTapLesson,
   onTapSlot,
 }: {
   lessons: Lesson[]
+  /** whether the week on screen is the one we're in — gates the "now" marker */
+  showNow: boolean
   onTapLesson: (lesson: Lesson) => void
   /** empty slot tapped — `startMinutes` is the hour it landed on */
   onTapSlot: (day: WeekdayIndex, startMinutes: number) => void
 }) {
   const byDay = useMemo(() => placeWeek(lessons), [lessons])
   const now = useNow()
-  const marker = nowMarker(now)
+  const marker = showNow ? nowMarker(now) : null
 
   function slotTap(day: WeekdayIndex, e: MouseEvent<HTMLButtonElement>) {
     const { left, width } = e.currentTarget.getBoundingClientRect()
@@ -112,7 +115,7 @@ export function TimetableGrid({
                 </button>
               ))}
 
-              <ElapsedShade pct={elapsedPct(d, now)} />
+              <ElapsedShade pct={showNow ? elapsedPct(d, now) : 0} />
               {marker?.day === d && <NowLine pct={marker.left} />}
             </div>
           ))}

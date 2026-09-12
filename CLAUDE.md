@@ -154,12 +154,19 @@ change.
     would say nothing useful.
   - Outside 08:00–20:00 there is no line; the shading still applies (before
     08:00 nothing of today is dimmed, after 20:00 all of it is).
-- Above the grid: the **semester week and its parity** ("Semester week 1 · odd").
-  `features/timetable/semester.ts` counts it from `SEMESTER_START`, a hard-coded
-  Monday that **needs editing once per semester** (currently 2026-09-14). Before
-  that date `semesterWeek` returns null and the line reads "Semester starts
-  14.09" instead. Unlike the routine grid this is always the current week — the
-  timetable has no week navigation.
+- `SemesterNav` above the grid pages through the semester's weeks and shows the
+  **semester week, its parity and its Mon–Fri dates**. `useSemesterWeek` clamps
+  paging to weeks 1..`semesterWeekCount()`; the centre button jumps back to the
+  current week.
+  - `features/timetable/semester.ts` holds `SEMESTER_START` / `SEMESTER_END` as
+    hard-coded dates that **need editing once per semester** (currently
+    2026-09-14 → 2027-01-31, which is 20 weeks). The start must be a Monday; the
+    end may fall anywhere inside the last week.
+  - The lessons never change — the timetable is a template with no dates — so
+    paging only moves the label, the parity and whether the "now" marker
+    applies (`showNow`, true only for the week we're actually in).
+  - `semesterWeek` returns null outside the semester. Then the view defaults to
+    week 1, the jump-to-now button is disabled and no marker is drawn.
 - `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
   once by `seedTimetableIfEmpty()` when the `lessons` table is empty (same
   atomic-transaction + in-flight-promise guard as `seedIfEmpty`, for the same

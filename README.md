@@ -57,9 +57,12 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
 - A default timetable is seeded on first run and is fully editable.
-- The header shows the **semester week and its parity**. The semester's first
-  Monday is set in `src/features/timetable/semester.ts` and needs updating each
-  semester.
+- Page through the semester's weeks with the arrows; the header shows the
+  **semester week, whether it's odd or even, and its dates**. Paging is clamped
+  to the semester and the lessons themselves don't change — the timetable is a
+  template — so it's the week label, the parity and the "now" marker that move.
+- The semester's dates are set in `src/features/timetable/semester.ts`
+  (currently 14 Sep 2026 – 31 Jan 2027) and need updating each semester.
 - On a weekday, a vertical line marks the current time and everything to its
   left — the part of the week that has already happened — is dimmed. At the
   weekend neither is shown; the timetable reads as the week ahead.
