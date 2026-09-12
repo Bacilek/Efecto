@@ -22,22 +22,33 @@ export function resolveCellState(
 }
 
 /**
- * Tap cycle for the STORED status, so that every tap changes the colour.
- * 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be done" (blue).
+ * Tap cycle. 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
+ * done" (blue).
  *
  * Today/future: undefined → done → missed → busy → undefined (empty box).
  *
  * Past: an unmarked cell already renders as `missed` (derived, see
- * `resolveCellState`), so "cleared" and "missed" are indistinguishable — both
- * red, both counted against the stats. Clearing would look like a second red
- * step, so the cycle skips it and wraps busy → done: green → red → blue →
- * green. A past cell therefore keeps an entry once marked, which changes
- * nothing the user can see or measure.
+ * `resolveCellState`), so there the cycle runs over the VISIBLE state and
+ * rotates missed → busy → done → missed. The empty step is dropped: it looks
+ * identical to red and would stall a tap. A past cell therefore keeps an entry
+ * once marked — cleared and `missed` read the same on screen and count the
+ * same in the stats, so nothing observable changes.
  */
 export function nextStatus(
   current: RoutineStatus | undefined,
   isPast: boolean,
 ): RoutineStatus | undefined {
+  if (isPast) {
+    switch (current ?? 'missed') {
+      case 'missed':
+        return 'busy'
+      case 'busy':
+        return 'done'
+      case 'done':
+        return 'missed'
+    }
+  }
+
   switch (current) {
     case undefined:
       return 'done'
@@ -46,7 +57,7 @@ export function nextStatus(
     case 'missed':
       return 'busy'
     case 'busy':
-      return isPast ? 'done' : undefined
+      return undefined
   }
 }
 
