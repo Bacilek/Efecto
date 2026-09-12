@@ -96,8 +96,10 @@ export function isoWeek(d: Date): number {
   return 1 + weeksBetween(firstThursday, thursday)
 }
 
+export type WeekParity = 'odd' | 'even'
+
 /** Whether a week number is odd or even. */
-export function weekParity(week: number): 'odd' | 'even' {
+export function weekParity(week: number): WeekParity {
   return week % 2 === 0 ? 'even' : 'odd'
 }
 

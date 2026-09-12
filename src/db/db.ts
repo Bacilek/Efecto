@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { WeekdayIndex } from '@/lib/date'
+import type { WeekdayIndex, WeekParity } from '@/lib/date'
 
 export type RoutineStatus = 'done' | 'busy' | 'missed'
 
@@ -59,6 +59,11 @@ export interface Lesson {
    * block that doesn't follow the weekly rhythm.
    */
   onlyDates?: string[]
+  /**
+   * Restrict the lesson to odd or even **semester** weeks (the parity
+   * `SemesterNav` displays). Unset = every week.
+   */
+  weeks?: WeekParity
   createdAt: number
 }
 

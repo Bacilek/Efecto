@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, type Lesson } from '@/db/db'
-import { toISODate, type WeekdayIndex } from '@/lib/date'
+import { toISODate, weekParity, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { TimetableGrid } from './TimetableGrid'
@@ -37,6 +37,7 @@ export function TimetableScreen() {
       day: draft.day,
       start: draft.start,
       end: draft.end,
+      weeks: draft.weeks ?? undefined,
     }
     if (target) {
       await db.lessons.update(target.id, fields)
@@ -84,6 +85,7 @@ export function TimetableScreen() {
       <TimetableGrid
         lessons={lessons ?? []}
         dates={week.dates}
+        parity={weekParity(week.week)}
         showNow={week.isCurrent}
         onTapLesson={(l) =>
           setEditor({
@@ -126,6 +128,7 @@ export function TimetableScreen() {
           lesson={editor.lesson}
           defaults={{ day: editor.day, start: editor.start }}
           occurrenceDate={editor.date}
+          occurrenceParity={weekParity(week.week)}
           onSave={(d) => void saveLesson(d)}
           onToggleOccurrence={() => void toggleOccurrence()}
           onDelete={() => void deleteLesson()}

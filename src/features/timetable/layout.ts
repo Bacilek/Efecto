@@ -1,5 +1,5 @@
 import type { Lesson, LessonKind } from '@/db/db'
-import { toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
+import { toISODate, weekdayIndex, type WeekdayIndex, type WeekParity } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 import { happensOn } from './occurrence'
 
@@ -83,7 +83,11 @@ function minutesOfDay(d: Date): number {
  * but hiding one behind another would make a mistake invisible rather than
  * obvious.
  */
-export function placeDay(lessons: Lesson[], dateISO: string | null = null): Placed[] {
+export function placeDay(
+  lessons: Lesson[],
+  dateISO: string | null = null,
+  parity: WeekParity | null = null,
+): Placed[] {
   const sorted = [...lessons].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
   const placed: Placed[] = []
   let cluster: Lesson[] = []
@@ -95,7 +99,7 @@ export function placeDay(lessons: Lesson[], dateISO: string | null = null): Plac
       const end = clampToWindow(timeToMinutes(lesson.end))
       placed.push({
         lesson,
-        happening: dateISO === null || happensOn(lesson, dateISO),
+        happening: dateISO === null || happensOn(lesson, dateISO, parity),
         left: pctOfDay(start),
         width: ((end - start) / SPAN) * 100,
         top: `${(i / cluster.length) * 100}%`,
@@ -118,15 +122,21 @@ export function placeDay(lessons: Lesson[], dateISO: string | null = null): Plac
 
 /**
  * Group lessons by weekday, each day already laid out. `dates` are that week's
- * Mon–Fri, used to resolve per-date exceptions; pass none to ignore them.
+ * Mon–Fri and `parity` the week's parity, both used to resolve which lessons
+ * actually happen; pass no dates to treat every lesson as happening.
  */
-export function placeWeek(lessons: Lesson[], dates?: Date[]): Record<number, Placed[]> {
+export function placeWeek(
+  lessons: Lesson[],
+  dates?: Date[],
+  parity: WeekParity | null = null,
+): Record<number, Placed[]> {
   const byDay: Record<number, Placed[]> = {}
   for (const [i, day] of DAYS.entries()) {
     const dateISO = dates?.[i] ? toISODate(dates[i]) : null
     byDay[day] = placeDay(
       lessons.filter((l) => l.day === day),
       dateISO,
+      parity,
     )
   }
   return byDay

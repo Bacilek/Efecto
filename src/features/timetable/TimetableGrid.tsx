@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 import { useMemo } from 'react'
 import type { Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
+import { DAY_LABELS, type WeekdayIndex, type WeekParity } from '@/lib/date'
 import { useNow } from '@/lib/useNow'
 import {
   DAYS,
@@ -22,6 +22,7 @@ import {
 export function TimetableGrid({
   lessons,
   dates,
+  parity,
   showNow,
   onTapLesson,
   onTapSlot,
@@ -29,13 +30,15 @@ export function TimetableGrid({
   lessons: Lesson[]
   /** Mon–Fri of the week on screen, for resolving per-date exceptions */
   dates: Date[]
+  /** parity of the week on screen, for odd/even-only lessons */
+  parity: WeekParity | null
   /** whether the week on screen is the one we're in — gates the "now" marker */
   showNow: boolean
   onTapLesson: (lesson: Lesson) => void
   /** empty slot tapped — `startMinutes` is the hour it landed on */
   onTapSlot: (day: WeekdayIndex, startMinutes: number) => void
 }) {
-  const byDay = useMemo(() => placeWeek(lessons, dates), [lessons, dates])
+  const byDay = useMemo(() => placeWeek(lessons, dates, parity), [lessons, dates, parity])
   const now = useNow()
   const marker = showNow ? nowMarker(now) : null
 

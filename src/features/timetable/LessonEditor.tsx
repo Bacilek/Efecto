@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { Lesson, LessonKind } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, formatShort, fromISODate, type WeekdayIndex } from '@/lib/date'
+import {
+  DAY_LABELS,
+  formatShort,
+  fromISODate,
+  type WeekdayIndex,
+  type WeekParity,
+} from '@/lib/date'
 import { minutesToTime, timeToMinutes } from '@/lib/time'
 import { happensOn } from './occurrence'
 import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
@@ -14,12 +20,22 @@ export interface LessonDraft {
   day: WeekdayIndex
   start: string
   end: string
+  /** null = every week */
+  weeks: WeekParity | null
 }
+
+/** "Every week" plus the two parities, in the order the picker shows them. */
+const WEEK_OPTIONS: { value: WeekParity | null; label: string }[] = [
+  { value: null, label: 'Every week' },
+  { value: 'odd', label: 'Odd' },
+  { value: 'even', label: 'Even' },
+]
 
 export function LessonEditor({
   lesson,
   defaults,
   occurrenceDate,
+  occurrenceParity,
   onSave,
   onToggleOccurrence,
   onDelete,
@@ -31,6 +47,8 @@ export function LessonEditor({
   defaults: { day: WeekdayIndex; start: string }
   /** the date of the occurrence that was tapped (`YYYY-MM-DD`) */
   occurrenceDate: string | null
+  /** parity of the week that date is in, for resolving odd/even-only lessons */
+  occurrenceParity: WeekParity | null
   onSave: (draft: LessonDraft) => void
   /** cancel or restore just `occurrenceDate` */
   onToggleOccurrence: () => void
@@ -44,6 +62,7 @@ export function LessonEditor({
   const [day, setDay] = useState<WeekdayIndex>(0)
   const [start, setStart] = useState('08:00')
   const [end, setEnd] = useState('09:00')
+  const [weeks, setWeeks] = useState<WeekParity | null>(null)
 
   useEffect(() => {
     setName(lesson?.name ?? '')
@@ -51,6 +70,7 @@ export function LessonEditor({
     setGroup(lesson?.group ?? '')
     setRoom(lesson?.room ?? '')
     setDay(lesson?.day ?? defaults.day)
+    setWeeks(lesson?.weeks ?? null)
     setStart(lesson?.start ?? defaults.start)
     setEnd(lesson?.end ?? minutesToTime(Math.min(timeToMinutes(defaults.start) + 60, DAY_END)))
   }, [lesson, defaults])
@@ -71,6 +91,7 @@ export function LessonEditor({
       day,
       start,
       end,
+      weeks,
     })
   }
 
@@ -154,6 +175,25 @@ export function LessonEditor({
           ))}
         </div>
 
+        <label className="mb-1.5 block text-xs text-muted">Repeats</label>
+        <div className="mb-3 flex gap-1.5">
+          {WEEK_OPTIONS.map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => setWeeks(o.value)}
+              className={cn(
+                'h-9 flex-1 rounded-md border text-xs transition-colors',
+                weeks === o.value
+                  ? 'border-brass-dim bg-brass-dim/30 text-parchment'
+                  : 'border-line text-dim',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
         <div className="mb-1 flex gap-2">
           <div className="flex-1">
             <label className="mb-1 block text-xs text-muted">From</label>
@@ -185,7 +225,12 @@ export function LessonEditor({
         </p>
 
         {lesson && occurrenceDate && (
-          <OccurrenceRow lesson={lesson} dateISO={occurrenceDate} onToggle={onToggleOccurrence} />
+          <OccurrenceRow
+            lesson={lesson}
+            dateISO={occurrenceDate}
+            parity={occurrenceParity}
+            onToggle={onToggleOccurrence}
+          />
         )}
 
         <div className="flex items-center gap-2">
@@ -222,13 +267,15 @@ export function LessonEditor({
 function OccurrenceRow({
   lesson,
   dateISO,
+  parity,
   onToggle,
 }: {
   lesson: Lesson
   dateISO: string
+  parity: WeekParity | null
   onToggle: () => void
 }) {
-  const happens = happensOn(lesson, dateISO)
+  const happens = happensOn(lesson, dateISO, parity)
   const skipDates = lesson.skipDates ?? []
   const list = (dates: string[]) => dates.map((d) => formatShort(fromISODate(d))).join(', ')
 
@@ -242,9 +289,12 @@ function OccurrenceRow({
               ? lesson.onlyDates.length > 0
                 ? `Runs only on ${list(lesson.onlyDates)}`
                 : 'Runs on no dates'
-              : skipDates.length > 0
-                ? `Cancelled on ${list(skipDates)}`
-                : 'Runs every week'}
+              : [
+                  lesson.weeks ? `${lesson.weeks} weeks only` : 'Every week',
+                  skipDates.length > 0 ? `cancelled on ${list(skipDates)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
           </p>
         </div>
         <button
