@@ -48,22 +48,41 @@ export async function backfillEmojis(): Promise<void> {
   })
 }
 
-export async function seedIfEmpty(): Promise<void> {
-  const count = await db.routines.count()
-  if (count > 0) return
+/**
+ * De-dupes concurrent callers within this tab: React's <StrictMode> runs mount
+ * effects twice in dev, so `seedIfEmpty` would otherwise be invoked twice.
+ */
+let seeding: Promise<void> | null = null
 
-  const now = Date.now()
-  const rows: Routine[] = SEED.map((s, i) => ({
-    id: newId(),
-    name: s.name,
-    emoji: s.emoji,
-    order: i,
-    activeDays: s.activeDays,
-    time: s.time,
-    archived: false,
-    createdAt: now + i,
-  }))
+export function seedIfEmpty(): Promise<void> {
+  seeding ??= runSeed().finally(() => {
+    seeding = null
+  })
+  return seeding
+}
 
-  await db.routines.bulkAdd(rows)
-  await db.meta.put({ key: 'seededAt', value: now })
+/**
+ * The emptiness check and the insert share one `rw` transaction: IndexedDB
+ * serialises readwrite transactions over the same store, so a second caller
+ * (another tab, or a re-entrant effect) sees the seeded rows and bails out.
+ */
+async function runSeed(): Promise<void> {
+  await db.transaction('rw', db.routines, db.meta, async () => {
+    if ((await db.routines.count()) > 0) return
+
+    const now = Date.now()
+    const rows: Routine[] = SEED.map((s, i) => ({
+      id: newId(),
+      name: s.name,
+      emoji: s.emoji,
+      order: i,
+      activeDays: s.activeDays,
+      time: s.time,
+      archived: false,
+      createdAt: now + i,
+    }))
+
+    await db.routines.bulkAdd(rows)
+    await db.meta.put({ key: 'seededAt', value: now })
+  })
 }
