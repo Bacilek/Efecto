@@ -35,6 +35,11 @@ export function TodosScreen() {
   // exactly "no folders and no loose todos".
   const isEmpty = folders?.length === 0 && todos?.length === 0
 
+  // Where the floating "+" drops a todo: the catch-all folder ("Others"), or
+  // the first one if the flag was edited away. Null only until the seed lands.
+  const defaultFolderId =
+    (folders ?? []).find((f) => f.isDefault)?.id ?? (folders ?? [])[0]?.id ?? null
+
   async function toggleDone(todo: Todo) {
     await db.todos.update(todo.id, {
       done: !todo.done,
@@ -142,9 +147,7 @@ export function TodosScreen() {
         </div>
       )}
 
-      <AddButton
-        onClick={() => setTodoEditor({ todo: null, folderId: sections[0]?.folder?.id ?? null })}
-      />
+      <AddButton onClick={() => setTodoEditor({ todo: null, folderId: defaultFolderId })} />
 
       {todoEditor && (
         <TodoEditor

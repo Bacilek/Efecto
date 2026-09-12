@@ -5,6 +5,7 @@ import {
   backfillLessonExceptions,
   seedIfEmpty,
   seedTimetableIfEmpty,
+  seedTodoFoldersIfEmpty,
 } from './db/seed'
 import { RoutineTrackerScreen } from './features/routines/RoutineTrackerScreen'
 import { TodosScreen } from './features/todos/TodosScreen'
@@ -18,6 +19,7 @@ export default function App() {
   useEffect(() => {
     void seedIfEmpty().then(backfillEmojis)
     void seedTimetableIfEmpty().then(backfillLessonExceptions)
+    void seedTodoFoldersIfEmpty()
   }, [])
 
   return (

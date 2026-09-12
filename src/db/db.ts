@@ -89,6 +89,11 @@ export interface TodoFolder {
   emoji?: string
   /** manual sort order (lower first) */
   order: number
+  /**
+   * The catch-all folder a new todo lands in when nothing else is picked.
+   * At most one folder carries it (the seeded "Others").
+   */
+  isDefault?: boolean
   createdAt: number
 }
 

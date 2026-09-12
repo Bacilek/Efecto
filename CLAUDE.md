@@ -229,12 +229,15 @@ Dateless tasks: anything with a fixed day or time belongs in the calendar, not
 here. The only structure is **folders** (categories) — there is no due date, no
 priority, no reminder.
 
-- `TodoFolder { id, name, emoji?, order, createdAt }`
+- `TodoFolder { id, name, emoji?, order, isDefault?, createdAt }`
+  - `isDefault` marks the **catch-all** folder a new todo lands in — the seeded
+    "Others". At most one folder carries it; if it is edited away the first
+    folder stands in.
 - `Todo { id, folderId?, title, note?, done, doneAt?, order, createdAt }`
   - `folderId` unset = the **"Unsorted"** bucket, a section rendered only when
-    it actually holds something. Keeping it optional means a todo never has to
-    wait for a folder to exist, and deleting a folder can't orphan a row into an
-    invisible state.
+    it actually holds something. Since "Others" exists it is a safety net rather
+    than a destination: the editor only offers "Unsorted" when there are no
+    folders at all, or to a todo already sitting there.
   - `order` is per folder — a new todo takes `max(order in that folder) + 1`.
   - `doneAt` is the tick's timestamp, used to order the completed tail.
 
@@ -247,7 +250,7 @@ attention. The header shows the count of **open** todos, and a section collapses
 
 Adding:
 - the floating round **"+"** above the nav bar is the primary gesture — it opens
-  the sheet prefilled with the first folder;
+  the sheet prefilled with the default folder;
 - each folder header has its own small `+` that prefills that folder;
 - the screen header's **"+ folder"** creates a category.
 
@@ -257,8 +260,12 @@ same shape for emoji + name; deleting a folder deletes its todos with it, and
 the confirm names the count.
 
 Tap the checkbox to tick, tap the text to edit, tap a folder's name to edit the
-folder. Live data via `useLiveQuery`, same as the routine grid — no seed, the
-lists start empty.
+folder. Live data via `useLiveQuery`, same as the routine grid.
+
+`SEED_FOLDERS` in `db/seed.ts` creates the user's categories once, when the
+`todoFolders` table is empty (same guards as the other seeds): **DiD** (the game
+he's building), **DnD** (the campaign he DMs), **School**, **Job** and
+**Others** — the default. The todos themselves start empty.
 
 ## Not yet done / known simplifications
 

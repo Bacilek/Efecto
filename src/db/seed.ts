@@ -1,4 +1,4 @@
-import { db, newId, type Lesson, type Routine } from './db'
+import { db, newId, type Lesson, type Routine, type TodoFolder } from './db'
 import type { WeekdayIndex } from '@/lib/date'
 
 const ALL: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6]
@@ -222,5 +222,50 @@ export async function backfillLessonExceptions(): Promise<void> {
       await db.lessons.update(match.id, e.fields)
     }
     await db.meta.put({ key: 'lessonExceptions1', value: Date.now() })
+  })
+}
+
+type SeedFolder = Pick<TodoFolder, 'name' | 'emoji'> & { isDefault?: boolean }
+
+/**
+ * The user's todo categories, inserted once when the `todoFolders` table is
+ * empty and fully editable afterwards. "Others" is flagged `isDefault`, so it
+ * is the catch-all a new todo lands in — the role the "Unsorted" bucket
+ * plays when no folder exists — and therefore sits last.
+ */
+const SEED_FOLDERS: SeedFolder[] = [
+  { name: 'DiD', emoji: '🕹️' },
+  { name: 'DnD', emoji: '🎲' },
+  { name: 'School', emoji: '📚' },
+  { name: 'Job', emoji: '💼' },
+  { name: 'Others', emoji: '📦', isDefault: true },
+]
+
+let seedingFolders: Promise<void> | null = null
+
+/** Same in-flight guard as `seedIfEmpty` — <StrictMode> calls this twice in dev. */
+export function seedTodoFoldersIfEmpty(): Promise<void> {
+  seedingFolders ??= runFolderSeed().finally(() => {
+    seedingFolders = null
+  })
+  return seedingFolders
+}
+
+async function runFolderSeed(): Promise<void> {
+  await db.transaction('rw', db.todoFolders, db.meta, async () => {
+    if ((await db.todoFolders.count()) > 0) return
+
+    const now = Date.now()
+    const rows: TodoFolder[] = SEED_FOLDERS.map((f, i) => ({
+      id: newId(),
+      name: f.name,
+      emoji: f.emoji,
+      order: i,
+      isDefault: f.isDefault,
+      createdAt: now + i,
+    }))
+
+    await db.todoFolders.bulkAdd(rows)
+    await db.meta.put({ key: 'todoFoldersSeededAt', value: now })
   })
 }

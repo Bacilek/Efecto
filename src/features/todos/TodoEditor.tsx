@@ -36,6 +36,10 @@ export function TodoEditor({
     setFolderId(todo ? (todo.folderId ?? null) : initialFolderId)
   }, [todo, initialFolderId])
 
+  // With a catch-all folder around, "Unsorted" is only worth offering while
+  // there are no folders at all, or to a todo that is already sitting there.
+  const allowUnsorted = folders.length === 0 || !!(todo && !todo.folderId)
+
   function submit() {
     const trimmed = title.trim()
     if (!trimmed) return
@@ -73,9 +77,11 @@ export function TodoEditor({
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
         <div className="mb-4 flex flex-wrap gap-1.5">
-          <Chip active={folderId === null} onClick={() => setFolderId(null)}>
-            Unsorted
-          </Chip>
+          {allowUnsorted && (
+            <Chip active={folderId === null} onClick={() => setFolderId(null)}>
+              Unsorted
+            </Chip>
+          )}
           {folders.map((f) => (
             <Chip key={f.id} active={folderId === f.id} onClick={() => setFolderId(f.id)}>
               {f.emoji ? `${f.emoji} ${f.name}` : f.name}
