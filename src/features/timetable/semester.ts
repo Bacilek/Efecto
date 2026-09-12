@@ -6,7 +6,7 @@ import { addDays, fromISODate, weeksBetween } from '@/lib/date'
  * Monday; `SEMESTER_END` may fall anywhere in the final week.
  */
 export const SEMESTER_START = '2026-09-14'
-export const SEMESTER_END = '2027-01-31'
+export const SEMESTER_END = '2026-12-18'
 
 export function semesterStart(): Date {
   return fromISODate(SEMESTER_START)

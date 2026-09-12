@@ -62,7 +62,7 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
   to the semester and the lessons themselves don't change — the timetable is a
   template — so it's the week label, the parity and the "now" marker that move.
 - The semester's dates are set in `src/features/timetable/semester.ts`
-  (currently 14 Sep 2026 – 31 Jan 2027) and need updating each semester.
+  (currently 14 Sep 2026 – 18 Dec 2026) and need updating each semester.
 - On a weekday, a vertical line marks the current time and everything to its
   left — the part of the week that has already happened — is dimmed. At the
   weekend neither is shown; the timetable reads as the week ahead.

@@ -160,7 +160,7 @@ change.
   current week.
   - `features/timetable/semester.ts` holds `SEMESTER_START` / `SEMESTER_END` as
     hard-coded dates that **need editing once per semester** (currently
-    2026-09-14 → 2027-01-31, which is 20 weeks). The start must be a Monday; the
+    2026-09-14 → 2026-12-18, which is 14 weeks). The start must be a Monday; the
     end may fall anywhere inside the last week.
   - The lessons never change — the timetable is a template with no dates — so
     paging only moves the label, the parity and whether the "now" marker
