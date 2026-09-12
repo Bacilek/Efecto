@@ -28,13 +28,20 @@ export interface Entry {
   updatedAt: number
 }
 
+/** Lecture / seminar ("cviko") / lab — drives the block's colour. */
+export type LessonKind = 'lecture' | 'seminar' | 'lab'
+
 /**
  * A school timetable entry. The timetable is a weekly template — it repeats
  * every week and carries no dates, unlike routine `Entry` rows.
  */
 export interface Lesson {
   id: string
+  /** subject code, e.g. "PV170" */
   name: string
+  kind: LessonKind
+  /** seminar group, the part after the slash in "MB142/09" */
+  group?: string
   room?: string
   /** 0=Mon .. 4=Fri — the timetable covers weekdays only */
   day: WeekdayIndex
@@ -71,6 +78,24 @@ db.version(2).stores({
   lessons: 'id, day',
   meta: 'key',
 })
+
+// v3 adds `kind` to lessons. Same stores, so only the upgrade hook matters:
+// lessons written before kinds existed default to a lecture.
+db.version(3)
+  .stores({
+    routines: 'id, order',
+    entries: 'id, routineId, date',
+    lessons: 'id, day',
+    meta: 'key',
+  })
+  .upgrade((tx) =>
+    tx
+      .table<Lesson>('lessons')
+      .toCollection()
+      .modify((l) => {
+        l.kind ??= 'lecture'
+      }),
+  )
 
 export function entryId(routineId: string, dateISO: string): string {
   return `${routineId}|${dateISO}`

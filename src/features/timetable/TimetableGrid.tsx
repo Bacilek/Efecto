@@ -3,7 +3,16 @@ import { useMemo } from 'react'
 import type { Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
-import { DAYS, GRID_HEIGHT, HOURS, PX_PER_MIN, DAY_START, hourAt, placeWeek } from './layout'
+import {
+  DAYS,
+  DAY_START,
+  GRID_HEIGHT,
+  HOURS,
+  KIND_STYLES,
+  PX_PER_MIN,
+  hourAt,
+  placeWeek,
+} from './layout'
 
 export function TimetableGrid({
   lessons,
@@ -72,10 +81,14 @@ export function TimetableGrid({
                     type="button"
                     onClick={() => onTapLesson(lesson)}
                     style={{ top, height, left, width }}
-                    className="absolute overflow-hidden rounded border-[1.5px] border-brass-dim bg-brass-dim/25 px-1 py-0.5 text-left"
+                    className={cn(
+                      'absolute overflow-hidden rounded border-[1.5px] px-1 py-0.5 text-left',
+                      KIND_STYLES[lesson.kind],
+                    )}
                   >
                     <span className="block truncate text-[11px] leading-tight text-parchment">
                       {lesson.name}
+                      {lesson.group && <span className="text-muted">/{lesson.group}</span>}
                     </span>
                     {lesson.room && (
                       <span className="block truncate font-mono text-[9px] leading-tight text-muted">

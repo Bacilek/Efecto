@@ -47,9 +47,14 @@ state:
 A weekly school timetable: **Mon–Fri, 08:00–20:00**. It's a template — it
 repeats every week and isn't tied to dates.
 
+Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
+(LAB, blue)**, and carries a subject code, an optional seminar group and a room —
+`PV170/09` in `S405`.
+
 - Tap any empty slot to add a lesson; it's prefilled with the hour you tapped.
-- Tap a lesson to edit its subject, room, day and times, or delete it.
+- Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
+- A default timetable is seeded on first run and is fully editable.
 
 ## Development
 
@@ -79,7 +84,7 @@ Everything is stored locally in IndexedDB (`efecto` database):
 
 - `routines` — `{ id, name, order, activeDays[0..6], time?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
-- `lessons` — timetable entries, `{ id, name, room?, day (0=Mon..4=Fri), start, end }`
+- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day (0=Mon..4=Fri), start, end }`
 - `meta` — key/value (seed marker, schema version)
 
 Default routines are seeded once on first run and are fully editable.

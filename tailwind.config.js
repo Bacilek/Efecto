@@ -22,6 +22,14 @@ export default {
         'busy-dim': '#2f4257',
         missed: '#b5645f',
         'missed-dim': '#4d2f2e',
+        // timetable lesson kinds (own tokens: the timetable is independent of
+        // the routine grid even where a hue happens to match)
+        lecture: '#7a9b76',
+        'lecture-dim': '#3f5240',
+        seminar: '#b5a44f',
+        'seminar-dim': '#4c4529',
+        lab: '#5b7fa6',
+        'lab-dim': '#2f4257',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

@@ -1,4 +1,4 @@
-import type { Lesson } from '@/db/db'
+import type { Lesson, LessonKind } from '@/db/db'
 import type { WeekdayIndex } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 
@@ -12,6 +12,27 @@ export const HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, 
 export const PX_PER_MIN = 54 / 60
 
 export const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN
+
+export const KINDS: LessonKind[] = ['lecture', 'seminar', 'lab']
+
+/** Short label, matching how the user writes their own timetable. */
+export const KIND_LABELS: Record<LessonKind, string> = {
+  lecture: 'L',
+  seminar: 'C',
+  lab: 'LAB',
+}
+
+export const KIND_NAMES: Record<LessonKind, string> = {
+  lecture: 'lecture',
+  seminar: 'seminar',
+  lab: 'lab',
+}
+
+export const KIND_STYLES: Record<LessonKind, string> = {
+  lecture: 'border-lecture bg-lecture-dim/60',
+  seminar: 'border-seminar bg-seminar-dim/60',
+  lab: 'border-lab bg-lab-dim/60',
+}
 
 /** A lesson resolved to pixel offsets inside one day column. */
 export interface Placed {

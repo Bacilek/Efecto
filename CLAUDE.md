@@ -117,8 +117,14 @@ A weekly template, Mon–Fri, 08:00–20:00 (`features/timetable/layout.ts` owns
 that window: `DAY_START`, `DAY_END`, `DAYS`, `PX_PER_MIN`). It repeats every
 week and holds no dates, so it needs no `Entry` equivalent.
 
-- `Lesson { id, name, room?, day, start, end, createdAt }` — `day` is 0=Mon..4=Fri,
-  `start`/`end` are "HH:MM" inside the window.
+- `Lesson { id, name, kind, group?, room?, day, start, end, createdAt }` — `day`
+  is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
+- `kind` is `lecture` | `seminar` | `lab` — the user's L / C / LAB — and picks the
+  block colour (green / yellow / blue, tokens `lecture` / `seminar` / `lab`).
+  `KIND_LABELS`, `KIND_NAMES` and `KIND_STYLES` in `layout.ts` are the single
+  source for all three.
+- `name` is the bare subject code ("PV170"); `group` is the seminar group that
+  follows the slash in "MB142/09". The grid renders them as `name/group`.
 - Layout is absolute positioning, not a CSS grid: `placeDay` converts each
   lesson to `top`/`height` from its minutes. Lessons that overlap in time split
   the column's width side by side, so a clash stays visible instead of hiding
@@ -126,13 +132,16 @@ week and holds no dates, so it needs no `Entry` equivalent.
 - Tap an empty slot to add a lesson prefilled with that hour (`hourAt` snaps the
   tap down to the hour, capped at `DAY_END - 60`); tap a lesson to edit it.
   `LessonEditor` is a bottom sheet mirroring `RoutineEditor`.
-- Nothing is seeded — the grid starts empty.
+- `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
+  once by `seedTimetableIfEmpty()` when the `lessons` table is empty (same
+  atomic-transaction + in-flight-promise guard as `seedIfEmpty`, for the same
+  <StrictMode> reason). Editing or deleting lessons afterwards sticks.
 
 ## Not yet done / known simplifications
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
-- Timetable: no per-lesson colours, no teacher field, no week A/B parity, and it
-  isn't linked to the calendar or to routines.
+- Timetable: colour comes from `kind` only (no per-subject colours), no teacher
+  field, no week A/B parity, and it isn't linked to the calendar or to routines.
 - Todos / Calendar are stubs.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android

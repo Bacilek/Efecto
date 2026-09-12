@@ -1,4 +1,4 @@
-import { db, newId, type Routine } from './db'
+import { db, newId, type Lesson, type Routine } from './db'
 import type { WeekdayIndex } from '@/lib/date'
 
 const ALL: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6]
@@ -103,5 +103,83 @@ async function runSeed(): Promise<void> {
 
     await db.routines.bulkAdd(rows)
     await db.meta.put({ key: 'seededAt', value: now })
+  })
+}
+
+type SeedLesson = Omit<Lesson, 'id' | 'createdAt'>
+
+/**
+ * The user's timetable, inserted once when the `lessons` table is empty and
+ * fully editable afterwards. `group` is the number after the slash in a subject
+ * code ("MB142/09"); `name` keeps the bare code.
+ */
+const SEED_TIMETABLE: SeedLesson[] = [
+  {
+    day: 0,
+    start: '18:00',
+    end: '20:00',
+    kind: 'seminar',
+    name: 'PV028',
+    group: 'CZ',
+    room: 'KOM 200',
+  },
+  {
+    day: 1,
+    start: '08:00',
+    end: '10:00',
+    kind: 'seminar',
+    name: 'MB142',
+    group: '09',
+    room: 'B204',
+  },
+  {
+    day: 1,
+    start: '10:00',
+    end: '12:00',
+    kind: 'seminar',
+    name: 'PV170',
+    group: '09',
+    room: 'S405',
+  },
+  { day: 2, start: '08:00', end: '10:00', kind: 'lecture', name: 'MB142', room: 'A, 01026' },
+  { day: 2, start: '10:00', end: '12:00', kind: 'lecture', name: 'PA015', room: 'A217' },
+  { day: 2, start: '14:00', end: '16:00', kind: 'lecture', name: 'PB006', room: 'A318' },
+  { day: 2, start: '18:00', end: '20:00', kind: 'lecture', name: 'PV170', room: 'Fast/D182' },
+  { day: 3, start: '14:00', end: '16:00', kind: 'lab', name: 'CORE100', room: 'G32' },
+  { day: 4, start: '08:00', end: '10:00', kind: 'lecture', name: 'PB007', room: '140' },
+  {
+    day: 4,
+    start: '10:00',
+    end: '12:00',
+    kind: 'seminar',
+    name: 'PB007',
+    group: '34',
+    room: 'A215',
+  },
+]
+
+let seedingTimetable: Promise<void> | null = null
+
+/** Same in-flight guard as `seedIfEmpty` — <StrictMode> calls this twice in dev. */
+export function seedTimetableIfEmpty(): Promise<void> {
+  seedingTimetable ??= runTimetableSeed().finally(() => {
+    seedingTimetable = null
+  })
+  return seedingTimetable
+}
+
+async function runTimetableSeed(): Promise<void> {
+  await db.transaction('rw', db.lessons, db.meta, async () => {
+    if ((await db.lessons.count()) > 0) return
+
+    const now = Date.now()
+    const rows: Lesson[] = SEED_TIMETABLE.map((l, i) => ({
+      id: newId(),
+      createdAt: now + i,
+      ...l,
+    }))
+
+    await db.lessons.bulkAdd(rows)
+    await db.meta.put({ key: 'timetableSeededAt', value: now })
   })
 }

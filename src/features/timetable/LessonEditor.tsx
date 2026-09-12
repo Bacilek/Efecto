@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { Lesson } from '@/db/db'
+import type { Lesson, LessonKind } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime, timeToMinutes } from '@/lib/time'
-import { DAY_END, DAYS, DAY_START } from './layout'
+import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
 
 export interface LessonDraft {
   name: string
+  kind: LessonKind
+  group: string
   room: string
   day: WeekdayIndex
   start: string
@@ -29,6 +31,8 @@ export function LessonEditor({
   onClose: () => void
 }) {
   const [name, setName] = useState('')
+  const [kind, setKind] = useState<LessonKind>('lecture')
+  const [group, setGroup] = useState('')
   const [room, setRoom] = useState('')
   const [day, setDay] = useState<WeekdayIndex>(0)
   const [start, setStart] = useState('08:00')
@@ -36,6 +40,8 @@ export function LessonEditor({
 
   useEffect(() => {
     setName(lesson?.name ?? '')
+    setKind(lesson?.kind ?? 'lecture')
+    setGroup(lesson?.group ?? '')
     setRoom(lesson?.room ?? '')
     setDay(lesson?.day ?? defaults.day)
     setStart(lesson?.start ?? defaults.start)
@@ -50,7 +56,15 @@ export function LessonEditor({
 
   function submit() {
     if (!valid) return
-    onSave({ name: name.trim(), room: room.trim(), day, start, end })
+    onSave({
+      name: name.trim(),
+      kind,
+      group: group.trim(),
+      room: room.trim(),
+      day,
+      start,
+      end,
+    })
   }
 
   return (
@@ -65,13 +79,23 @@ export function LessonEditor({
 
         <div className="mb-3 flex gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted">Subject</label>
+            <label className="mb-1 block text-xs text-muted">Subject code</label>
             <input
               autoFocus={!lesson}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="e.g. Maths"
+              placeholder="e.g. PV170"
+              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
+            />
+          </div>
+          <div className="w-16">
+            <label className="mb-1 block text-xs text-muted">Group</label>
+            <input
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="09"
               className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
             />
           </div>
@@ -81,10 +105,27 @@ export function LessonEditor({
               value={room}
               onChange={(e) => setRoom(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="B12"
+              placeholder="B204"
               className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
             />
           </div>
+        </div>
+
+        <label className="mb-1.5 block text-xs text-muted">Type</label>
+        <div className="mb-3 flex gap-1.5">
+          {KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setKind(k)}
+              className={cn(
+                'h-9 flex-1 rounded-md border text-xs transition-colors',
+                kind === k ? `${KIND_STYLES[k]} text-parchment` : 'border-line text-dim',
+              )}
+            >
+              {KIND_LABELS[k]}
+            </button>
+          ))}
         </div>
 
         <label className="mb-1.5 block text-xs text-muted">Day</label>
