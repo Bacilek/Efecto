@@ -110,6 +110,13 @@ export interface Todo {
   done: boolean
   /** epoch ms of the last tick, kept so completed todos can be ordered */
   doneAt?: number
+  /**
+   * `YYYY-MM-DD` the todo was pulled onto the **Today** tab. Not a due date —
+   * the todo keeps living in its folder, this only says "I mean to do it
+   * today". An older date stays listed (a carried-over task), so nothing
+   * planned quietly disappears unfinished.
+   */
+  plannedFor?: string
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number

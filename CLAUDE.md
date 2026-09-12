@@ -226,22 +226,31 @@ brass, matching the routine grid — but only in the current week (`showNow`).
 ## Todos — how it works
 
 Dateless tasks: anything with a fixed day or time belongs in the calendar, not
-here. The only structure is **folders** (categories) — there is no due date, no
-priority, no reminder.
+here. Two sub-tabs (`Tab` in `TodosScreen`):
+
+- **Today** — the flat list of what I mean to do today, pulled in from the
+  folders. The tab label carries the outstanding count.
+- **All** — every task, as the folder tiles below.
+
+The only structure is **folders** (categories) — there is still no due date, no
+priority, no reminder. "Today" is a plan, not a deadline.
 
 - `TodoFolder { id, name, emoji?, order, isDefault?, createdAt }`
   - `isDefault` marks the **catch-all** folder a new todo lands in — the seeded
     "Others". At most one folder carries it; if it is edited away the first
     folder stands in.
-- `Todo { id, folderId?, title, note?, done, doneAt?, order, createdAt }`
+- `Todo { id, folderId?, title, note?, done, doneAt?, plannedFor?, order, createdAt }`
   - `folderId` unset = the **"Unsorted"** bucket, a section rendered only when
     it actually holds something. Since "Others" exists it is a safety net rather
     than a destination: the editor only offers "Unsorted" when there are no
     folders at all, or to a todo already sitting there.
   - `order` is per folder — a new todo takes `max(order in that folder) + 1`.
   - `doneAt` is the tick's timestamp, used to order the completed tail.
+  - `plannedFor` (`YYYY-MM-DD`) is the date it was pulled onto **Today**. The
+    todo stays in its folder either way — this only says "I mean to do it
+    today", which is why it is a plain date and not a due date.
 
-`TodosScreen` has two views, switched by `openKey` (component state, not a
+The **All** tab has two views, switched by `openKey` (component state, not a
 route):
 
 - the **overview** — one square **tile** per folder, in `order`, with Unsorted
@@ -254,16 +263,26 @@ route):
   against the live sections, so deleting the open folder falls back to the
   overview instead of a blank screen.
 
+`features/todos/today.ts` decides what the **Today** tab shows. `isOnToday`
+takes `plannedFor <= today`, not `=== today`: an unfinished task **carries
+over** rather than silently dropping back into its folder overnight, and
+`isCarriedOver` labels it. A task ticked on an earlier day drops out — it is
+finished, and today's list is about what is still ahead. The list follows the
+folder order, so it reads in the same sequence as the tiles, and each row shows
+which folder it came from.
+
 Inside a folder, `sortTodos` keeps open tasks in their manual `order` and
 **sinks ticked ones to the bottom**, newest tick first, struck through and dim —
 so finishing something never makes it vanish, but it stops competing for
 attention.
 
 Adding:
-- the floating round **"+"** above the nav bar is the only add gesture, and it
-  is present in both views: it prefills **the open folder**, or the default one
-  from the overview;
-- the screen header's **"+ folder"** creates a category.
+- the floating round **"+"** above the nav bar is the only add gesture and is
+  present everywhere: it prefills **the open folder** (or the default one), and
+  on the Today tab it also prefills today;
+- the **★** on every row pulls a task onto Today or drops it back — the quick
+  gesture, next to the editor's "Plan" row;
+- the screen header's **"+ folder"** creates a category (All tab only).
 
 `TodoEditor` (bottom sheet, mirroring `RoutineEditor`): task, note, a folder
 picker of pills ("Unsorted" + every folder), and delete. `FolderEditor` is the
@@ -287,8 +306,9 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
 - Todos: no due dates (by design, for now), no reordering by drag, no archive —
-  delete is hard-delete. Folders can't be reordered either, and the open folder
-  isn't remembered across a tab switch.
+  delete is hard-delete. Folders can't be reordered either, and neither the open
+  folder nor the sub-tab is remembered across a tab switch. Nothing repeats: a
+  task planned for today is a one-off.
 - Calendar is a stub.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
@@ -305,8 +325,10 @@ past-unmarked cells red, off-days grey `–`, tap cycles colours and **survives
 reload**, week nav keeps per-week marks and is clamped to the year, editor
 add/edit/delete works, excused cells leave the `%` alone.
 
-Todos — folder tiles wrap instead of overflowing sideways at 360px, tapping one
-opens its tasks and the back arrow returns, "+" adds into the open folder,
+Todos — Today lists exactly the starred tasks with their folder, ★ adds and
+removes them and yesterday's unfinished ones stay as "carried over"; on All the
+folder tiles wrap instead of overflowing sideways at 360px, tapping one opens
+its tasks and the back arrow returns, "+" adds into the open folder,
 ticking sinks a task to the bottom struck through, edits and deletes **survive
 reload**, and deleting a folder takes its todos and drops back to the tiles.
 

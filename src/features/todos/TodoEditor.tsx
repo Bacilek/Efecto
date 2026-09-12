@@ -1,18 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Todo, TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
+import { todayISO } from '@/lib/date'
 
 export interface TodoDraft {
   title: string
   note: string
   /** null = "Unsorted" */
   folderId: string | null
+  /** `YYYY-MM-DD` it sits on the Today tab under; null = not planned */
+  plannedFor: string | null
 }
 
 export function TodoEditor({
   todo,
   folders,
   initialFolderId,
+  initialPlannedFor,
   onSave,
   onDelete,
   onClose,
@@ -22,6 +26,8 @@ export function TodoEditor({
   folders: TodoFolder[]
   /** folder a new todo lands in — the one whose "+" was tapped */
   initialFolderId: string | null
+  /** set for a todo added from the Today tab, so it lands there */
+  initialPlannedFor: string | null
   onSave: (draft: TodoDraft) => void
   onDelete: () => void
   onClose: () => void
@@ -29,12 +35,14 @@ export function TodoEditor({
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [folderId, setFolderId] = useState<string | null>(null)
+  const [plannedFor, setPlannedFor] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(todo?.title ?? '')
     setNote(todo?.note ?? '')
     setFolderId(todo ? (todo.folderId ?? null) : initialFolderId)
-  }, [todo, initialFolderId])
+    setPlannedFor(todo ? (todo.plannedFor ?? null) : initialPlannedFor)
+  }, [todo, initialFolderId, initialPlannedFor])
 
   // With a catch-all folder around, "Unsorted" is only worth offering while
   // there are no folders at all, or to a todo that is already sitting there.
@@ -43,7 +51,7 @@ export function TodoEditor({
   function submit() {
     const trimmed = title.trim()
     if (!trimmed) return
-    onSave({ title: trimmed, note: note.trim(), folderId })
+    onSave({ title: trimmed, note: note.trim(), folderId, plannedFor })
   }
 
   return (
@@ -74,6 +82,16 @@ export function TodoEditor({
           placeholder="Optional"
           className="mb-3 w-full resize-none rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
         />
+
+        <label className="mb-1.5 block text-xs text-muted">Plan</label>
+        <div className="mb-3 flex gap-1.5">
+          <Chip active={plannedFor === null} onClick={() => setPlannedFor(null)}>
+            Someday
+          </Chip>
+          <Chip active={plannedFor !== null} onClick={() => setPlannedFor(todayISO())}>
+            Today
+          </Chip>
+        </div>
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
         <div className="mb-4 flex flex-wrap gap-1.5">

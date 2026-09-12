@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, type Todo, type TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
+import { todayISO } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
+import { isCarriedOver, isOnToday } from './today'
 
 /** `{ todo: null }` opens the sheet for a new todo in `folderId`. */
-type TodoTarget = { todo: Todo | null; folderId: string | null } | null
+type TodoTarget = { todo: Todo | null; folderId: string | null; plannedFor: string | null } | null
 type FolderTarget = { folder: TodoFolder | null } | null
+
+/** The two sub-tabs: what I mean to do today, and everything there is. */
+type Tab = 'today' | 'all'
 
 /** One folder's tile: the folder itself, or the fallback bucket when null. */
 interface Section {
@@ -22,34 +27,63 @@ interface Section {
 const UNSORTED = 'unsorted'
 
 export function TodosScreen() {
+  const [tab, setTab] = useState<Tab>('today')
   const [todoEditor, setTodoEditor] = useState<TodoTarget>(null)
   const [folderEditor, setFolderEditor] = useState<FolderTarget>(null)
-  /** which folder is open; null = the tile overview */
+  /** which folder is open on the All tab; null = the tile overview */
   const [openKey, setOpenKey] = useState<string | null>(null)
 
   const folders = useLiveQuery(() => db.todoFolders.orderBy('order').toArray(), [])
   const todos = useLiveQuery(() => db.todos.toArray(), [])
+
+  const today = todayISO()
 
   const sections = useMemo<Section[]>(
     () => buildSections(folders ?? [], todos ?? []),
     [folders, todos],
   )
 
-  // A folder deleted while open (or an Unsorted bucket emptied into one) leaves
-  // no tile behind, so fall back to the overview rather than a blank screen.
-  const open = sections.find((s) => s.key === openKey) ?? null
+  // Today's list follows the folder order, so it reads in the same sequence as
+  // the tiles; ticked tasks sink to the bottom exactly as they do in a folder.
+  const todayTodos = useMemo(
+    () => sortTodos(sections.flatMap((s) => s.todos).filter((t) => isOnToday(t, today))),
+    [sections, today],
+  )
+
+  const folderOf = useMemo(() => {
+    const m = new Map<string, TodoFolder | null>()
+    for (const s of sections) for (const t of s.todos) m.set(t.id, s.folder)
+    return m
+  }, [sections])
+
+  // A folder deleted while open leaves no tile behind, so fall back to the
+  // overview rather than a blank screen.
+  const open = tab === 'all' ? (sections.find((s) => s.key === openKey) ?? null) : null
 
   // Where the floating "+" drops a todo: the open folder, else the catch-all
   // ("Others"), else the first tile. Null only until the seed lands.
   const defaultFolderId =
     (folders ?? []).find((f) => f.isDefault)?.id ?? (folders ?? [])[0]?.id ?? null
-  const addFolderId = open ? (open.folder?.id ?? null) : defaultFolderId
+
+  function addTodo() {
+    setTodoEditor({
+      todo: null,
+      folderId: open ? (open.folder?.id ?? null) : defaultFolderId,
+      // Adding from the Today tab means "today" — that is what the tab is for.
+      plannedFor: tab === 'today' ? today : null,
+    })
+  }
 
   async function toggleDone(todo: Todo) {
     await db.todos.update(todo.id, {
       done: !todo.done,
       doneAt: todo.done ? undefined : Date.now(),
     })
+  }
+
+  /** Pull a task onto Today, or drop it back to its folder. */
+  async function togglePlanned(todo: Todo) {
+    await db.todos.update(todo.id, { plannedFor: todo.plannedFor ? undefined : today })
   }
 
   async function saveTodo(draft: TodoDraft) {
@@ -59,6 +93,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         folderId: draft.folderId ?? undefined,
+        plannedFor: draft.plannedFor ?? undefined,
       })
     } else {
       // Order is per folder, so a new todo goes last inside its own tile.
@@ -70,6 +105,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         done: false,
+        plannedFor: draft.plannedFor ?? undefined,
         order: maxOrder + 1,
         createdAt: Date.now(),
       })
@@ -115,31 +151,61 @@ export function TodosScreen() {
     setOpenKey(null)
   }
 
+  const editTodo = (t: Todo) =>
+    setTodoEditor({ todo: t, folderId: t.folderId ?? null, plannedFor: t.plannedFor ?? null })
+
   return (
     <>
       {open ? (
         <FolderView
           section={open}
+          today={today}
           onBack={() => setOpenKey(null)}
           onEditFolder={() => open.folder && setFolderEditor({ folder: open.folder })}
           onToggleTodo={(t) => void toggleDone(t)}
-          onEditTodo={(t) => setTodoEditor({ todo: t, folderId: t.folderId ?? null })}
+          onTogglePlanned={(t) => void togglePlanned(t)}
+          onEditTodo={editTodo}
         />
       ) : (
         <>
           <ScreenHeader
             title="Todos"
             action={
-              <button
-                type="button"
-                onClick={() => setFolderEditor({ folder: null })}
-                className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
-              >
-                + folder
-              </button>
+              tab === 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setFolderEditor({ folder: null })}
+                  className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
+                >
+                  + folder
+                </button>
+              )
             }
           />
-          {sections.length === 0 ? (
+          <Tabs tab={tab} onChange={setTab} todayCount={todayTodos.filter((t) => !t.done).length} />
+
+          {tab === 'today' ? (
+            todayTodos.length === 0 ? (
+              <EmptyState
+                title="Nothing planned for today."
+                hint={'Pull tasks in from "All", or add one with "+".'}
+              />
+            ) : (
+              <ul className="px-4 pb-28">
+                {todayTodos.map((t) => (
+                  <TodoRow
+                    key={t.id}
+                    todo={t}
+                    today={today}
+                    folder={folderOf.get(t.id) ?? null}
+                    onToggle={() => void toggleDone(t)}
+                    onTogglePlanned={() => void togglePlanned(t)}
+                    onEdit={() => editTodo(t)}
+                  />
+                ))}
+              </ul>
+            )
+          ) : sections.length === 0 ? (
             <EmptyState
               title="No folders yet."
               hint={'Make one with "+ folder", then fill it with tasks.'}
@@ -150,13 +216,14 @@ export function TodosScreen() {
         </>
       )}
 
-      <AddButton onClick={() => setTodoEditor({ todo: null, folderId: addFolderId })} />
+      <AddButton onClick={addTodo} />
 
       {todoEditor && (
         <TodoEditor
           todo={todoEditor.todo}
           folders={folders ?? []}
           initialFolderId={todoEditor.folderId}
+          initialPlannedFor={todoEditor.plannedFor}
           onSave={(d) => void saveTodo(d)}
           onDelete={() => void deleteTodo()}
           onClose={() => setTodoEditor(null)}
@@ -204,10 +271,55 @@ function folderLabel(folder: TodoFolder | null): string {
   return folder ? folder.name : 'Unsorted'
 }
 
+/** The Today / All switch, with today's outstanding count on the left tab. */
+function Tabs({
+  tab,
+  onChange,
+  todayCount,
+}: {
+  tab: Tab
+  onChange: (t: Tab) => void
+  todayCount: number
+}) {
+  return (
+    <div className="mb-3 flex gap-1.5 px-4">
+      <TabButton active={tab === 'today'} onClick={() => onChange('today')}>
+        Today {todayCount > 0 && <span className="font-mono text-[11px]">{todayCount}</span>}
+      </TabButton>
+      <TabButton active={tab === 'all'} onClick={() => onChange('all')}>
+        All
+      </TabButton>
+    </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'h-9 flex-1 rounded-md border text-sm transition-colors',
+        active ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-muted',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 /**
- * The overview: tiles flow side by side and wrap onto the next line when they
- * no longer fit, so the column count follows the viewport width rather than a
- * breakpoint — two on a phone, more on a wide screen.
+ * The All tab's overview: tiles flow side by side and wrap onto the next line
+ * when they no longer fit, so the column count follows the viewport width
+ * rather than a breakpoint — two on a phone, more on a wide screen.
  */
 function FolderTiles({ sections, onOpen }: { sections: Section[]; onOpen: (key: string) => void }) {
   return (
@@ -238,18 +350,22 @@ function FolderTile({ section, onOpen }: { section: Section; onOpen: () => void 
   )
 }
 
-/** One folder's task list, opened from its tile. */
+/** One folder's task list, opened from its tile on the All tab. */
 function FolderView({
   section,
+  today,
   onBack,
   onEditFolder,
   onToggleTodo,
+  onTogglePlanned,
   onEditTodo,
 }: {
   section: Section
+  today: string
   onBack: () => void
   onEditFolder: () => void
   onToggleTodo: (t: Todo) => void
+  onTogglePlanned: (t: Todo) => void
   onEditTodo: (t: Todo) => void
 }) {
   const { folder, todos } = section
@@ -288,7 +404,9 @@ function FolderView({
             <TodoRow
               key={t.id}
               todo={t}
+              today={today}
               onToggle={() => onToggleTodo(t)}
+              onTogglePlanned={() => onTogglePlanned(t)}
               onEdit={() => onEditTodo(t)}
             />
           ))}
@@ -300,13 +418,22 @@ function FolderView({
 
 function TodoRow({
   todo,
+  today,
+  folder,
   onToggle,
+  onTogglePlanned,
   onEdit,
 }: {
   todo: Todo
+  today: string
+  /** shown as a badge on the Today tab, where the rows come from all folders */
+  folder?: TodoFolder | null
   onToggle: () => void
+  onTogglePlanned: () => void
   onEdit: () => void
 }) {
+  const planned = !!todo.plannedFor
+
   return (
     <li className="flex items-start gap-2 border-b border-line-soft last:border-b-0">
       <button
@@ -328,7 +455,24 @@ function TodoRow({
         <span className={cn('block', todo.done ? 'text-dim line-through' : 'text-parchment')}>
           {todo.title}
         </span>
-        {todo.note && <span className="mt-0.5 block text-xs text-muted">{todo.note}</span>}
+        {(todo.note || folder || isCarriedOver(todo, today)) && (
+          <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
+            {folder && <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>}
+            {isCarriedOver(todo, today) && <span className="text-missed">carried over</span>}
+            {todo.note && <span>{todo.note}</span>}
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={onTogglePlanned}
+        aria-label={planned ? 'Remove from today' : 'Do today'}
+        className={cn(
+          'flex h-12 w-10 shrink-0 items-center justify-center text-sm',
+          planned ? 'text-brass' : 'text-dim',
+        )}
+      >
+        ★
       </button>
     </li>
   )
