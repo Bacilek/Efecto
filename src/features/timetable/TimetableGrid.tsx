@@ -55,8 +55,8 @@ export function TimetableGrid({
           <div
             key={d}
             className={cn(
-              'flex items-center justify-center text-xs',
-              showNow && weekdayIndex(now) === d ? 'text-brass' : 'text-muted',
+              'flex items-center justify-center text-[13px]',
+              showNow && weekdayIndex(now) === d ? 'text-brass' : 'text-parchment',
             )}
             style={{ height: ROW_HEIGHT }}
           >
@@ -70,7 +70,7 @@ export function TimetableGrid({
           {HOURS.slice(0, -1).map((h) => (
             <div
               key={h}
-              className="absolute text-center font-mono text-[11px] text-dim"
+              className="absolute text-center font-mono text-xs text-muted"
               style={{ left: `${pctOfDay(h * 60)}%`, width: `${HOUR_PCT}%` }}
             >
               {h}
