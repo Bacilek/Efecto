@@ -2,7 +2,13 @@ import type { MouseEvent } from 'react'
 import { useMemo } from 'react'
 import type { Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, weekdayIndex, type WeekdayIndex, type WeekParity } from '@/lib/date'
+import {
+  DAY_LABELS,
+  formatShort,
+  weekdayIndex,
+  type WeekdayIndex,
+  type WeekParity,
+} from '@/lib/date'
 import { useNow } from '@/lib/useNow'
 import {
   DAYS,
@@ -54,16 +60,23 @@ export function TimetableGrid({
         className="shrink-0"
         style={{ width: GUTTER, paddingTop: HEADER_HEIGHT, paddingRight: 6 }}
       >
-        {DAYS.map((d) => (
+        {DAYS.map((d, i) => (
           <div
             key={d}
-            className={cn(
-              'flex items-center justify-center text-[13px]',
-              showNow && weekdayIndex(now) === d ? 'text-brass' : 'text-parchment',
-            )}
+            className="flex flex-col items-center justify-center leading-tight"
             style={{ height: ROW_HEIGHT }}
           >
-            {DAY_LABELS[d]}
+            <span
+              className={cn(
+                'text-[13px]',
+                showNow && weekdayIndex(now) === d ? 'text-brass' : 'text-parchment',
+              )}
+            >
+              {DAY_LABELS[d]}
+            </span>
+            {dates[i] && (
+              <span className="font-mono text-[10px] text-muted">{formatShort(dates[i])}</span>
+            )}
           </div>
         ))}
       </div>
@@ -74,13 +87,17 @@ export function TimetableGrid({
             <div
               key={h}
               className={cn(
-                'absolute bottom-0 top-0 text-center font-mono text-xs text-muted',
-                // the tick makes each label visibly sit inside its own hour column
+                'absolute bottom-0 top-0 pl-1 text-left font-mono text-[11px] text-muted',
+                // the tick shows which hour column the label opens
                 h > 8 && 'border-l border-line-soft',
               )}
               style={{ left: `${pctOfDay(h * 60)}%`, width: `${HOUR_PCT}%` }}
             >
-              {h}
+              {/* Every hour gets a tick, but only every other one is labelled:
+                  "19:00" needs 36px and an hour column is 27.5px on a phone, so
+                  labelling all twelve would overlap. Even hours match the
+                  two-hour rhythm the lessons are on. */}
+              {(h - HOURS[0]) % 2 === 0 && `${h}:00`}
             </div>
           ))}
         </div>
@@ -121,7 +138,7 @@ export function TimetableGrid({
                   onClick={() => onTapLesson(lesson)}
                   style={{ left: `${left}%`, width: `${width}%`, top, height, minWidth: 22 }}
                   className={cn(
-                    'absolute overflow-hidden rounded px-0.5 py-0.5 text-left',
+                    'absolute flex flex-col justify-center overflow-hidden rounded px-0.5 text-center',
                     happening
                       ? `border-[1.5px] ${KIND_STYLES[lesson.kind]}`
                       : 'border border-dashed border-line bg-panel-2',
@@ -129,7 +146,7 @@ export function TimetableGrid({
                 >
                   <span
                     className={cn(
-                      'block truncate text-[10px] leading-tight',
+                      'w-full truncate text-[11px] leading-tight',
                       happening ? 'text-parchment' : 'text-dim line-through',
                     )}
                   >
@@ -141,7 +158,7 @@ export function TimetableGrid({
                   {lesson.room && (
                     <span
                       className={cn(
-                        'block truncate font-mono text-[9px] leading-tight',
+                        'w-full truncate font-mono text-[10px] leading-tight',
                         happening ? 'text-muted' : 'text-dim',
                       )}
                     >

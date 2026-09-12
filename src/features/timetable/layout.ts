@@ -20,8 +20,8 @@ export const SPAN = DAY_END - DAY_START
  */
 export const ROW_HEIGHT = 52
 export const HEADER_HEIGHT = 22
-/** Width of the day-label gutter, in pixels — wide enough to centre "Wed". */
-export const GUTTER = 38
+/** Width of the day-label gutter, in pixels — wide enough for "Wed" over a date. */
+export const GUTTER = 46
 
 export const GRID_HEIGHT = ROW_HEIGHT * DAYS.length
 
