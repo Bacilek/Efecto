@@ -5,15 +5,15 @@
 
 export type WeekdayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
-export const DAY_LABELS: readonly string[] = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne']
+export const DAY_LABELS: readonly string[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export const DAY_LABELS_LONG: readonly string[] = [
-  'Pondělí',
-  'Úterý',
-  'Středa',
-  'Čtvrtek',
-  'Pátek',
-  'Sobota',
-  'Neděle',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ]
 
 /** 0=Mon .. 6=Sun for a given date. */

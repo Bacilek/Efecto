@@ -17,8 +17,8 @@ export default defineConfig({
       manifest: {
         name: 'Efecto',
         short_name: 'Efecto',
-        description: 'Rutiny, úkoly a kalendář na jednom místě.',
-        lang: 'cs',
+        description: 'Routines, todos and a calendar in one place.',
+        lang: 'en',
         theme_color: '#12141c',
         background_color: '#12141c',
         display: 'standalone',

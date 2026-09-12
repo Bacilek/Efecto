@@ -5,8 +5,6 @@ Minimalist, mobile-first efficiency app. **Routine tracker** first, then built-i
 lives on the device. Target: installable PWA now, Google Play app later (via
 Capacitor).
 
-> UI is in Czech. Code, docs and commit messages are in English.
-
 ## Status
 
 | Feature | State |
@@ -25,10 +23,10 @@ state:
 
 | Taps | State | Colour | Counts as |
 | --- | --- | --- | --- |
-| 1 | splněno (done) | green | pass |
-| 2 | nesplněno (missed) | red | fail |
-| 3 | omluveno (busy) | blue | neither — excluded from the % |
-| 4 | zpět na čeká (pending) | — | not yet counted |
+| 1 | done | green | pass |
+| 2 | missed | red | fail |
+| 3 | excused | blue | neither — excluded from the % |
+| 4 | back to pending | — | not yet counted |
 
 - A day with **nothing outstanding is 100 %** — no routines scheduled, or every
   one of them excused.

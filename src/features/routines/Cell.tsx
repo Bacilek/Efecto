@@ -35,7 +35,11 @@ export function Cell({ state, onTap }: { state: CellState; onTap: () => void }) 
           STYLES[state],
         )}
       >
-        <span className={state === 'done' ? 'text-done' : state === 'busy' ? 'text-busy' : 'text-missed'}>
+        <span
+          className={
+            state === 'done' ? 'text-done' : state === 'busy' ? 'text-busy' : 'text-missed'
+          }
+        >
           {GLYPH[state]}
         </span>
       </button>
@@ -44,8 +48,8 @@ export function Cell({ state, onTap }: { state: CellState; onTap: () => void }) 
 }
 
 const LABEL: Record<Exclude<CellState, 'off'>, string> = {
-  pending: 'nezaškrtnuto',
-  done: 'splněno',
-  busy: 'omluveno',
-  missed: 'nesplněno',
+  pending: 'not marked',
+  done: 'done',
+  busy: 'excused',
+  missed: 'missed',
 }

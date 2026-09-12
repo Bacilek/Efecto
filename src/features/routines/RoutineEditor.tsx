@@ -53,9 +53,7 @@ export function RoutineEditor({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
-        <h2 className="mb-3 font-display text-lg">
-          {routine ? 'Upravit rutinu' : 'Nová rutina'}
-        </h2>
+        <h2 className="mb-3 font-display text-lg">{routine ? 'Edit routine' : 'New routine'}</h2>
 
         <div className="mb-3 flex gap-2">
           <div>
@@ -69,19 +67,19 @@ export function RoutineEditor({
             />
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted">Název</label>
+            <label className="mb-1 block text-xs text-muted">Name</label>
             <input
               autoFocus={!routine}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="např. Ranní běh"
+              placeholder="e.g. Morning run"
               className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
             />
           </div>
         </div>
 
-        <label className="mb-1.5 block text-xs text-muted">Platí ve dnech</label>
+        <label className="mb-1.5 block text-xs text-muted">Active on</label>
         <div className="mb-4 flex gap-1.5">
           {ALL_DAYS.map((d) => (
             <button
@@ -107,17 +105,17 @@ export function RoutineEditor({
             disabled={!name.trim()}
             className="flex-1 rounded-md border border-brass-dim bg-brass-dim/30 py-2 text-sm text-parchment disabled:opacity-40"
           >
-            Uložit
+            Save
           </button>
           {routine && (
             <button
               type="button"
               onClick={() => {
-                if (confirm(`Smazat rutinu „${routine.name}"? Smažou se i její záznamy.`)) onDelete()
+                if (confirm(`Delete "${routine.name}"? Its marks will be deleted too.`)) onDelete()
               }}
               className="rounded-md border border-missed-dim px-3 py-2 text-sm text-missed"
             >
-              Smazat
+              Delete
             </button>
           )}
         </div>

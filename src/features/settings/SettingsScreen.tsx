@@ -36,7 +36,7 @@ export function SettingsScreen() {
   async function importData(file: File) {
     try {
       const parsed = JSON.parse(await file.text()) as Backup
-      if (parsed.app !== 'efecto') throw new Error('Neplatný soubor.')
+      if (parsed.app !== 'efecto') throw new Error('Not a valid Efecto backup.')
       await db.transaction('rw', db.routines, db.entries, async () => {
         await db.routines.clear()
         await db.entries.clear()
@@ -45,34 +45,34 @@ export function SettingsScreen() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await db.entries.bulkAdd(parsed.entries as any[])
       })
-      setMsg('Data importována.')
+      setMsg('Data imported.')
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Import selhal.')
+      setMsg(e instanceof Error ? e.message : 'Import failed.')
     }
   }
 
   async function resetData() {
-    if (!confirm('Smazat všechna data a obnovit výchozí rutiny?')) return
+    if (!confirm('Delete all data and restore the default routines?')) return
     await db.transaction('rw', db.routines, db.entries, db.meta, async () => {
       await db.routines.clear()
       await db.entries.clear()
       await db.meta.clear()
     })
     await seedIfEmpty()
-    setMsg('Data obnovena na výchozí.')
+    setMsg('Data reset to defaults.')
   }
 
   return (
     <>
-      <ScreenHeader title="Nastavení" />
+      <ScreenHeader title="Settings" />
       <div className="space-y-3 px-4 pb-8">
-        <Row label="Zálohovat data" desc="Stáhne JSON se všemi rutinami a záznamy.">
+        <Row label="Back up data" desc="Downloads a JSON file with every routine and mark.">
           <button className={btn} onClick={() => void exportData()}>
             Export
           </button>
         </Row>
 
-        <Row label="Obnovit ze zálohy" desc="Přepíše současná data souborem.">
+        <Row label="Restore from backup" desc="Overwrites the current data with a file.">
           <button className={btn} onClick={() => fileRef.current?.click()}>
             Import
           </button>
@@ -89,7 +89,7 @@ export function SettingsScreen() {
           />
         </Row>
 
-        <Row label="Reset" desc="Smaže vše a nasadí výchozí rutiny.">
+        <Row label="Reset" desc="Wipes everything and seeds the default routines.">
           <button className={btnDanger} onClick={() => void resetData()}>
             Reset
           </button>
@@ -97,7 +97,9 @@ export function SettingsScreen() {
 
         {msg && <p className="pt-1 text-sm text-muted">{msg}</p>}
 
-        <p className="pt-6 text-center text-xs text-dim">Efecto · v0.1.0 · data uložena v zařízení</p>
+        <p className="pt-6 text-center text-xs text-dim">
+          Efecto · v0.1.0 · data stored on this device
+        </p>
       </div>
     </>
   )
@@ -108,15 +110,7 @@ const btn =
 const btnDanger =
   'rounded-md border border-missed-dim px-3 py-1.5 text-sm text-missed transition-colors hover:border-missed'
 
-function Row({
-  label,
-  desc,
-  children,
-}: {
-  label: string
-  desc: string
-  children: ReactNode
-}) {
+function Row({ label, desc, children }: { label: string; desc: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-line-soft bg-panel px-4 py-3">
       <div>

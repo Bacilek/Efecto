@@ -4,8 +4,8 @@ import { EmptyState } from '@/ui/EmptyState'
 export function CalendarScreen() {
   return (
     <>
-      <ScreenHeader title="Kalendář" />
-      <EmptyState title="Kalendář zatím není hotový." hint="Na řadě po úkolech." />
+      <ScreenHeader title="Calendar" />
+      <EmptyState title="The calendar isn't built yet." hint="Next up after todos." />
     </>
   )
 }

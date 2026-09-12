@@ -99,14 +99,14 @@ export function RoutineTrackerScreen() {
   return (
     <>
       <ScreenHeader
-        title="Rutiny"
+        title="Routines"
         action={
           <button
             type="button"
             onClick={() => setEditor({ routine: null })}
             className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
           >
-            + rutina
+            + routine
           </button>
         }
       />
@@ -114,7 +114,7 @@ export function RoutineTrackerScreen() {
       <WeekSummary pct={weekStats.pct} done={weekStats.done} total={weekStats.total} />
 
       {routines && routines.length === 0 ? (
-        <EmptyState title="Žádné rutiny." hint={'Přidej první přes „+ rutina".'} />
+        <EmptyState title="No routines yet." hint={'Add your first one with "+ routine".'} />
       ) : (
         <RoutineGrid
           dates={week.dates}
@@ -144,7 +144,7 @@ function WeekSummary({ pct, done, total }: { pct: number; done: number; total: n
   return (
     <div className="px-4 pb-2">
       <div className="mb-1 flex items-baseline justify-between text-[11px]">
-        <span className="text-muted">Splněno tento týden</span>
+        <span className="text-muted">Done this week</span>
         <span className="font-mono text-muted">
           {done}/{total} · <span className="text-parchment">{pct} %</span>
         </span>
@@ -159,12 +159,12 @@ function WeekSummary({ pct, done, total }: { pct: number; done: number; total: n
 function Legend() {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pt-4 text-[11px] text-muted">
-      <Item cls="border-done bg-done-dim" label="splněno" />
-      <Item cls="border-missed bg-missed-dim" label="nesplněno" />
-      <Item cls="border-busy bg-busy-dim" label="nestihnuto" />
-      <Item cls="border-brass-dim" label="čeká" />
+      <Item cls="border-done bg-done-dim" label="done" />
+      <Item cls="border-missed bg-missed-dim" label="missed" />
+      <Item cls="border-busy bg-busy-dim" label="excused" />
+      <Item cls="border-brass-dim" label="pending" />
       <span className="flex items-center gap-1.5">
-        <span className="text-dim">–</span> neplatí
+        <span className="text-dim">–</span> not scheduled
       </span>
     </div>
   )

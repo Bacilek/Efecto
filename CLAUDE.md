@@ -21,8 +21,10 @@ Distribution: **installable PWA now**, **Google Play app later** via Capacitor
 
 ## Conventions
 
-- **UI text: Czech.** **Code, identifiers, comments, docs, commit messages:
-  English.**
+- **Everything is English** — UI text included. (It used to be a Czech UI; the
+  user asked for English on 2026-09-12. `src/db/seed.ts` keeps the original
+  Czech routine names in `LEGACY_EMOJI` for the one-time emoji backfill.)
+- No i18n framework — strings are inline in the components.
 - Package manager: **npm**. Node 20 LTS.
 - Path alias `@/` → `src/`.
 - Formatting: Prettier (no semicolons, single quotes, width 100). Lint: ESLint
@@ -88,9 +90,9 @@ Tap cycles the status (`nextStatus`). 1 tap = done (green), 2 = missed (red),
 `busy` means **excused**, not failed: "couldn't be done for a good reason"
 (ill, travelling). It is neither pass nor fail — see the stats below.
 
-`RoutineEditor` (bottom sheet): emoji, name, 7 weekday toggles, delete (also wipes
+`RoutineEditor` (bottom sheet): emoji, name, 7 weekday toggles ("Active on"), delete (also wipes
 that routine's entries). New routine via the "+ rutina" header
-button. Drag a column header sideways to reorder: the grabbed icon follows the
+button ("+ routine"). Drag a column header sideways to reorder: the grabbed icon follows the
 pointer 1:1 while the other columns slide to their live target slots
 (`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`
 rewrites every `order` and the overlay is held until the persisted order matches.

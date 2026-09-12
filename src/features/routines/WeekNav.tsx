@@ -11,7 +11,7 @@ export function WeekNav({ week }: { week: WeekState }) {
         onClick={week.prev}
         disabled={!week.canPrev}
         className={arrow}
-        aria-label="Předchozí týden"
+        aria-label="Previous week"
       >
         ‹
       </button>
@@ -23,7 +23,7 @@ export function WeekNav({ week }: { week: WeekState }) {
         className="font-mono text-xs text-muted disabled:opacity-60"
       >
         {formatShort(from)} – {formatShort(to)}
-        {!week.isCurrent && <span className="ml-2 text-brass">dnes</span>}
+        {!week.isCurrent && <span className="ml-2 text-brass">today</span>}
       </button>
 
       <button
@@ -31,7 +31,7 @@ export function WeekNav({ week }: { week: WeekState }) {
         onClick={week.next}
         disabled={!week.canNext}
         className={arrow}
-        aria-label="Další týden"
+        aria-label="Next week"
       >
         ›
       </button>

@@ -37,7 +37,13 @@ export function RoutineGrid({
   // Column drag-to-reorder. The grabbed header follows the pointer 1:1; the other
   // columns slide to their new slots live (via `visualRoutines`) while dragging.
   // Pointer-based so it works on touch; `touch-pan-y` keeps vertical scroll.
-  const grabRef = useRef<{ id: string; startX: number; from: number; w: number; moved: boolean } | null>(null)
+  const grabRef = useRef<{
+    id: string
+    startX: number
+    from: number
+    w: number
+    moved: boolean
+  } | null>(null)
   const dragStateRef = useRef<DragState | null>(null)
   const settleRef = useRef<string | null>(null)
   const didDragRef = useRef(false)
@@ -171,9 +177,7 @@ export function RoutineGrid({
                   )}
                 >
                   <div className="whitespace-nowrap">
-                    <span
-                      className={cn('text-[13px]', isToday ? 'text-brass' : 'text-parchment')}
-                    >
+                    <span className={cn('text-[13px]', isToday ? 'text-brass' : 'text-parchment')}>
                       {DAY_LABELS[i]}
                     </span>{' '}
                     <span className="font-mono text-[11px] text-muted">{formatShort(date)}</span>

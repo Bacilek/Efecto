@@ -4,8 +4,8 @@ import { EmptyState } from '@/ui/EmptyState'
 export function TodosScreen() {
   return (
     <>
-      <ScreenHeader title="Úkoly" />
-      <EmptyState title="Úkoly zatím nejsou hotové." hint="Přijdou hned po rutinách." />
+      <ScreenHeader title="Todos" />
+      <EmptyState title="Todos aren't built yet." hint="They come right after routines." />
     </>
   )
 }

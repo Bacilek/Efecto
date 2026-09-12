@@ -3,19 +3,13 @@ import { cn } from '@/lib/cn'
 export type Screen = 'routines' | 'todos' | 'calendar' | 'settings'
 
 const TABS: { id: Screen; label: string; icon: string }[] = [
-  { id: 'routines', label: 'Rutiny', icon: '▦' },
-  { id: 'todos', label: 'Úkoly', icon: '☑' },
-  { id: 'calendar', label: 'Kalendář', icon: '▤' },
-  { id: 'settings', label: 'Nastavení', icon: '⚙' },
+  { id: 'routines', label: 'Routines', icon: '▦' },
+  { id: 'todos', label: 'Todos', icon: '☑' },
+  { id: 'calendar', label: 'Calendar', icon: '▤' },
+  { id: 'settings', label: 'Settings', icon: '⚙' },
 ]
 
-export function BottomNav({
-  active,
-  onChange,
-}: {
-  active: Screen
-  onChange: (s: Screen) => void
-}) {
+export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: Screen) => void }) {
   return (
     <nav
       className="border-t border-line bg-panel"
