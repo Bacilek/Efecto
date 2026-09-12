@@ -1,18 +1,18 @@
 # Efecto
 
-Minimalist, mobile-first efficiency app. **Routine tracker** first, then built-in
-**todos** and a **calendar** — one place to run your day. Offline-first, data
-lives on the device. Target: installable PWA now, Google Play app later (via
-Capacitor).
+Minimalist, mobile-first efficiency app: a **routine tracker** and a **school
+timetable**, with **todos** and a **calendar** to come — one place to run your
+day. Offline-first, data lives on the device. Target: installable PWA now,
+Google Play app later (via Capacitor).
 
 ## Status
 
 | Feature | State |
 | --- | --- |
 | Routine tracker (weekly grid) | done (v1) |
-| Todos | stub |
-| Calendar | stub |
 | Timetable (weekly, Mon–Fri) | done (v1) |
+| Todos | stub — next up |
+| Calendar | stub |
 | Cloud sync | later |
 | Android build (Capacitor) | config only |
 
@@ -39,8 +39,9 @@ week number and whether it's odd or even**. Tap a cell to cycle its state:
   same as red — and rotates red → blue → green.
 - A routine that doesn't apply to a weekday shows a grey `–` and isn't tappable
   (set per-routine in the editor — e.g. a gym split on Mon/Tue/Thu/Fri).
-- Tap a column header to edit the routine (name, time, active weekdays, delete).
-  `time` is optional and only orders the columns.
+- Tap a column header to edit the routine — emoji, name, the weekdays it applies
+  to, or delete it (which also removes its marks). Drag a header sideways to
+  reorder the columns.
 
 ## Timetable
 
@@ -55,7 +56,8 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 
 - Tap any empty slot to add a lesson; it's prefilled with the hour you tapped.
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
-- Lessons that overlap are shown side by side, so a clash is visible.
+- Lessons that overlap in time are stacked within the day's row, so a clash
+  stays visible.
 - A default timetable is seeded on first run and is fully editable.
 - **One-off exceptions:** tap a lesson and use *Cancel this one* to drop just
   that week's occurrence, or *Restore this one* to put it back. A lesson that
@@ -99,10 +101,13 @@ Everything is stored locally in IndexedDB (`efecto` database):
 
 - `routines` — `{ id, name, order, activeDays[0..6], time?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
-- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day (0=Mon..4=Fri), start, end }`
+- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day
+  (0=Mon..4=Fri), start, end, skipDates?, onlyDates? }` — the last two are the
+  per-date exceptions
 - `meta` — key/value (seed marker, schema version)
 
-Default routines are seeded once on first run and are fully editable.
+Default routines and a default timetable are seeded once on first run — each
+when its own table is empty — and are fully editable afterwards.
 **Settings → Export / Import** does JSON backup & restore; **Reset** wipes and
 re-seeds.
 
