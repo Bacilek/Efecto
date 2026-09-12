@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 import { useMemo } from 'react'
 import type { Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, type WeekdayIndex, type WeekParity } from '@/lib/date'
+import { DAY_LABELS, weekdayIndex, type WeekdayIndex, type WeekParity } from '@/lib/date'
 import { useNow } from '@/lib/useNow'
 import {
   DAYS,
@@ -10,6 +10,7 @@ import {
   GUTTER,
   HEADER_HEIGHT,
   HOURS,
+  HOUR_PCT,
   KIND_STYLES,
   ROW_HEIGHT,
   elapsedPct,
@@ -53,7 +54,10 @@ export function TimetableGrid({
         {DAYS.map((d) => (
           <div
             key={d}
-            className="flex items-center text-[11px] text-muted"
+            className={cn(
+              'flex items-center justify-center text-xs',
+              showNow && weekdayIndex(now) === d ? 'text-brass' : 'text-muted',
+            )}
             style={{ height: ROW_HEIGHT }}
           >
             {DAY_LABELS[d]}
@@ -64,13 +68,13 @@ export function TimetableGrid({
       <div className="min-w-0 flex-1">
         <div className="relative" style={{ height: HEADER_HEIGHT }}>
           {HOURS.slice(0, -1).map((h) => (
-            <span
+            <div
               key={h}
-              className="absolute font-mono text-[10px] text-dim"
-              style={{ left: `${pctOfDay(h * 60)}%`, paddingLeft: 2 }}
+              className="absolute text-center font-mono text-[11px] text-dim"
+              style={{ left: `${pctOfDay(h * 60)}%`, width: `${HOUR_PCT}%` }}
             >
               {h}
-            </span>
+            </div>
           ))}
         </div>
 
@@ -89,7 +93,12 @@ export function TimetableGrid({
           {DAYS.map((d, i) => (
             <div
               key={d}
-              className={cn('absolute inset-x-0', i > 0 && 'border-t border-line-soft')}
+              className={cn(
+                'absolute inset-x-0',
+                i > 0 && 'border-t border-line-soft',
+                // today's row is tinted, as it is in the routine grid
+                showNow && weekdayIndex(now) === d && 'bg-today',
+              )}
               style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
             >
               <button

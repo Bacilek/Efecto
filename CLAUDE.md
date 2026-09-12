@@ -152,6 +152,11 @@ hour is ~25px and a two-hour lesson ~50px, so long codes truncate. Going back to
 a fixed pixels-per-minute scale with sideways scrolling is a one-constant
 change.
 
+Labels are centred on what they label: an hour number sits over its own column
+(`HOUR_PCT` wide, so the 19 doesn't overflow the right edge) and a day label is
+centred in the `GUTTER`. Today's row is tinted `bg-today` with its label in
+brass, matching the routine grid — but only in the current week (`showNow`).
+
 - `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
 - `weeks` restricts a lesson to odd or even **semester** weeks (the parity

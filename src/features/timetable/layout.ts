@@ -19,11 +19,16 @@ export const SPAN = DAY_END - DAY_START
  * scroll — the cost is that an hour is only as wide as the viewport allows.
  */
 export const ROW_HEIGHT = 52
-export const HEADER_HEIGHT = 16
-/** Width of the day-label gutter, in pixels. */
-export const GUTTER = 28
+export const HEADER_HEIGHT = 20
+/** Width of the day-label gutter, in pixels — wide enough to centre "Wed". */
+export const GUTTER = 34
 
 export const GRID_HEIGHT = ROW_HEIGHT * DAYS.length
+
+/** Whole hours the grid spans, i.e. how many hour columns there are. */
+export const HOUR_COUNT = SPAN / 60
+/** Width of one hour column, as a percentage — labels centre themselves on it. */
+export const HOUR_PCT = 100 / HOUR_COUNT
 
 /** Where `minutes` sits along the horizontal axis, as a 0..100 percentage. */
 export function pctOfDay(minutes: number): number {
