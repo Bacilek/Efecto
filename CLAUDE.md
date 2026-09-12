@@ -241,17 +241,28 @@ priority, no reminder.
   - `order` is per folder — a new todo takes `max(order in that folder) + 1`.
   - `doneAt` is the tick's timestamp, used to order the completed tail.
 
-`TodosScreen` builds one `Section` per folder (in `order`), plus Unsorted last.
-Inside a section, `sortTodos` keeps open tasks in their manual `order` and
+`TodosScreen` has two views, switched by `openKey` (component state, not a
+route):
+
+- the **overview** — one square **tile** per folder, in `order`, with Unsorted
+  last. They are a `repeat(auto-fill, minmax(9rem, 1fr))` grid, so they sit side
+  by side and wrap onto the next line when they no longer fit: the column count
+  follows the viewport (two on a phone, more on a wide screen) instead of a
+  breakpoint. A tile shows its emoji, name and `N open` / `all done` / `empty`.
+- the **folder view** — that folder's tasks, reached by tapping its tile, with a
+  back arrow and an "Edit" button for the folder itself. `openKey` is resolved
+  against the live sections, so deleting the open folder falls back to the
+  overview instead of a blank screen.
+
+Inside a folder, `sortTodos` keeps open tasks in their manual `order` and
 **sinks ticked ones to the bottom**, newest tick first, struck through and dim —
 so finishing something never makes it vanish, but it stops competing for
-attention. The header shows the count of **open** todos, and a section collapses
-(component state, not persisted).
+attention.
 
 Adding:
-- the floating round **"+"** above the nav bar is the primary gesture — it opens
-  the sheet prefilled with the default folder;
-- each folder header has its own small `+` that prefills that folder;
+- the floating round **"+"** above the nav bar is the only add gesture, and it
+  is present in both views: it prefills **the open folder**, or the default one
+  from the overview;
 - the screen header's **"+ folder"** creates a category.
 
 `TodoEditor` (bottom sheet, mirroring `RoutineEditor`): task, note, a folder
@@ -259,8 +270,8 @@ picker of pills ("Unsorted" + every folder), and delete. `FolderEditor` is the
 same shape for emoji + name; deleting a folder deletes its todos with it, and
 the confirm names the count.
 
-Tap the checkbox to tick, tap the text to edit, tap a folder's name to edit the
-folder. Live data via `useLiveQuery`, same as the routine grid.
+Tap the checkbox to tick, tap the text to edit, tap "Edit" in an open folder to
+rename or delete it. Live data via `useLiveQuery`, same as the routine grid.
 
 `SEED_FOLDERS` in `db/seed.ts` creates the user's categories once, when the
 `todoFolders` table is empty (same guards as the other seeds): **DiD** (the game
@@ -276,7 +287,8 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
 - Todos: no due dates (by design, for now), no reordering by drag, no archive —
-  delete is hard-delete. Folders can't be reordered either.
+  delete is hard-delete. Folders can't be reordered either, and the open folder
+  isn't remembered across a tab switch.
 - Calendar is a stub.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
@@ -293,9 +305,10 @@ past-unmarked cells red, off-days grey `–`, tap cycles colours and **survives
 reload**, week nav keeps per-week marks and is clamped to the year, editor
 add/edit/delete works, excused cells leave the `%` alone.
 
-Todos — "+ folder" then "+" adds a task into it, ticking sinks it to the bottom
-struck through, edits and deletes **survive reload**, deleting a folder takes
-its todos, and a todo with no folder shows under "Unsorted".
+Todos — folder tiles wrap instead of overflowing sideways at 360px, tapping one
+opens its tasks and the back arrow returns, "+" adds into the open folder,
+ticking sinks a task to the bottom struck through, edits and deletes **survive
+reload**, and deleting a folder takes its todos and drops back to the tiles.
 
 Timetable — all of 08:00–20:00 fits without scrolling, blocks are coloured by
 kind with no hour line crossing a two-hour lesson, the "now" line sits at the

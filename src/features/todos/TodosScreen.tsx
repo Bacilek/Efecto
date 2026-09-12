@@ -11,17 +11,21 @@ import { FolderEditor, type FolderDraft } from './FolderEditor'
 type TodoTarget = { todo: Todo | null; folderId: string | null } | null
 type FolderTarget = { folder: TodoFolder | null } | null
 
-/** One rendered section: a folder, or the fallback bucket when `folder` is null. */
+/** One folder's tile: the folder itself, or the fallback bucket when null. */
 interface Section {
+  /** folder id, or `UNSORTED` for the loose todos */
   key: string
   folder: TodoFolder | null
   todos: Todo[]
 }
 
+const UNSORTED = 'unsorted'
+
 export function TodosScreen() {
   const [todoEditor, setTodoEditor] = useState<TodoTarget>(null)
   const [folderEditor, setFolderEditor] = useState<FolderTarget>(null)
-  const [collapsed, setCollapsed] = useState<string[]>([])
+  /** which folder is open; null = the tile overview */
+  const [openKey, setOpenKey] = useState<string | null>(null)
 
   const folders = useLiveQuery(() => db.todoFolders.orderBy('order').toArray(), [])
   const todos = useLiveQuery(() => db.todos.toArray(), [])
@@ -31,14 +35,15 @@ export function TodosScreen() {
     [folders, todos],
   )
 
-  // Only the fallback bucket can be empty-and-hidden, so "nothing at all" is
-  // exactly "no folders and no loose todos".
-  const isEmpty = folders?.length === 0 && todos?.length === 0
+  // A folder deleted while open (or an Unsorted bucket emptied into one) leaves
+  // no tile behind, so fall back to the overview rather than a blank screen.
+  const open = sections.find((s) => s.key === openKey) ?? null
 
-  // Where the floating "+" drops a todo: the catch-all folder ("Others"), or
-  // the first one if the flag was edited away. Null only until the seed lands.
+  // Where the floating "+" drops a todo: the open folder, else the catch-all
+  // ("Others"), else the first tile. Null only until the seed lands.
   const defaultFolderId =
     (folders ?? []).find((f) => f.isDefault)?.id ?? (folders ?? [])[0]?.id ?? null
+  const addFolderId = open ? (open.folder?.id ?? null) : defaultFolderId
 
   async function toggleDone(todo: Todo) {
     await db.todos.update(todo.id, {
@@ -56,7 +61,7 @@ export function TodosScreen() {
         folderId: draft.folderId ?? undefined,
       })
     } else {
-      // Order is per folder, so a new todo goes last inside its own section.
+      // Order is per folder, so a new todo goes last inside its own tile.
       const siblings = (todos ?? []).filter((t) => (t.folderId ?? null) === draft.folderId)
       const maxOrder = siblings.reduce((m, t) => Math.max(m, t.order), -1)
       await db.todos.add({
@@ -107,47 +112,45 @@ export function TodosScreen() {
       await db.todoFolders.delete(target.id)
     })
     setFolderEditor(null)
+    setOpenKey(null)
   }
 
   return (
     <>
-      <ScreenHeader
-        title="Todos"
-        action={
-          <button
-            type="button"
-            onClick={() => setFolderEditor({ folder: null })}
-            className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
-          >
-            + folder
-          </button>
-        }
-      />
-
-      {isEmpty ? (
-        <EmptyState title="No todos yet." hint={'Make a folder, then add tasks to it with "+".'} />
+      {open ? (
+        <FolderView
+          section={open}
+          onBack={() => setOpenKey(null)}
+          onEditFolder={() => open.folder && setFolderEditor({ folder: open.folder })}
+          onToggleTodo={(t) => void toggleDone(t)}
+          onEditTodo={(t) => setTodoEditor({ todo: t, folderId: t.folderId ?? null })}
+        />
       ) : (
-        <div className="px-4 pb-28">
-          {sections.map((s) => (
-            <FolderSection
-              key={s.key}
-              section={s}
-              collapsed={collapsed.includes(s.key)}
-              onToggleCollapse={() =>
-                setCollapsed((prev) =>
-                  prev.includes(s.key) ? prev.filter((k) => k !== s.key) : [...prev, s.key],
-                )
-              }
-              onEditFolder={() => s.folder && setFolderEditor({ folder: s.folder })}
-              onAddTodo={() => setTodoEditor({ todo: null, folderId: s.folder?.id ?? null })}
-              onToggleTodo={(t) => void toggleDone(t)}
-              onEditTodo={(t) => setTodoEditor({ todo: t, folderId: t.folderId ?? null })}
+        <>
+          <ScreenHeader
+            title="Todos"
+            action={
+              <button
+                type="button"
+                onClick={() => setFolderEditor({ folder: null })}
+                className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
+              >
+                + folder
+              </button>
+            }
+          />
+          {sections.length === 0 ? (
+            <EmptyState
+              title="No folders yet."
+              hint={'Make one with "+ folder", then fill it with tasks.'}
             />
-          ))}
-        </div>
+          ) : (
+            <FolderTiles sections={sections} onOpen={setOpenKey} />
+          )}
+        </>
       )}
 
-      <AddButton onClick={() => setTodoEditor({ todo: null, folderId: defaultFolderId })} />
+      <AddButton onClick={() => setTodoEditor({ todo: null, folderId: addFolderId })} />
 
       {todoEditor && (
         <TodoEditor
@@ -175,7 +178,7 @@ export function TodosScreen() {
 
 /**
  * Folders in their own order, each with its todos; the loose ones follow in an
- * "Unsorted" bucket that is only rendered when it has something in it.
+ * "Unsorted" tile that is only built when it has something in it.
  */
 function buildSections(folders: TodoFolder[], todos: Todo[]): Section[] {
   const sections: Section[] = folders.map((f) => ({
@@ -184,7 +187,7 @@ function buildSections(folders: TodoFolder[], todos: Todo[]): Section[] {
     todos: sortTodos(todos.filter((t) => t.folderId === f.id)),
   }))
   const loose = sortTodos(todos.filter((t) => !t.folderId))
-  if (loose.length) sections.push({ key: 'unsorted', folder: null, todos: loose })
+  if (loose.length) sections.push({ key: UNSORTED, folder: null, todos: loose })
   return sections
 }
 
@@ -197,71 +200,101 @@ function sortTodos(todos: Todo[]): Todo[] {
   })
 }
 
-function FolderSection({
-  section,
-  collapsed,
-  onToggleCollapse,
-  onEditFolder,
-  onAddTodo,
-  onToggleTodo,
-  onEditTodo,
-}: {
-  section: Section
-  collapsed: boolean
-  onToggleCollapse: () => void
-  onEditFolder: () => void
-  onAddTodo: () => void
-  onToggleTodo: (t: Todo) => void
-  onEditTodo: (t: Todo) => void
-}) {
+function folderLabel(folder: TodoFolder | null): string {
+  return folder ? folder.name : 'Unsorted'
+}
+
+/**
+ * The overview: tiles flow side by side and wrap onto the next line when they
+ * no longer fit, so the column count follows the viewport width rather than a
+ * breakpoint — two on a phone, more on a wide screen.
+ */
+function FolderTiles({ sections, onOpen }: { sections: Section[]; onOpen: (key: string) => void }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 px-4 pb-28">
+      {sections.map((s) => (
+        <FolderTile key={s.key} section={s} onOpen={() => onOpen(s.key)} />
+      ))}
+    </div>
+  )
+}
+
+function FolderTile({ section, onOpen }: { section: Section; onOpen: () => void }) {
   const { folder, todos } = section
   const open = todos.filter((t) => !t.done).length
 
   return (
-    <section className="mb-3 overflow-hidden rounded-xl border border-line bg-panel">
-      <header className="flex items-center gap-1 border-b border-line-soft px-2 py-2">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-line bg-panel p-2 text-center transition-colors hover:border-muted"
+    >
+      <span className="text-3xl leading-none">{folder?.emoji ?? '📥'}</span>
+      <span className="w-full truncate text-sm text-parchment">{folderLabel(folder)}</span>
+      <span className="font-mono text-[11px] text-muted">
+        {todos.length === 0 ? 'empty' : open === 0 ? 'all done' : `${open} open`}
+      </span>
+    </button>
+  )
+}
+
+/** One folder's task list, opened from its tile. */
+function FolderView({
+  section,
+  onBack,
+  onEditFolder,
+  onToggleTodo,
+  onEditTodo,
+}: {
+  section: Section
+  onBack: () => void
+  onEditFolder: () => void
+  onToggleTodo: (t: Todo) => void
+  onEditTodo: (t: Todo) => void
+}) {
+  const { folder, todos } = section
+
+  return (
+    <>
+      <header className="flex items-center gap-1 px-2 pb-3 pt-4">
         <button
           type="button"
-          onClick={onToggleCollapse}
-          aria-label={collapsed ? 'Expand folder' : 'Collapse folder'}
-          className="w-6 text-center text-xs text-dim"
+          onClick={onBack}
+          aria-label="Back to folders"
+          className="h-9 w-9 shrink-0 rounded-md text-lg text-muted hover:text-parchment"
         >
-          {collapsed ? '▸' : '▾'}
+          ←
         </button>
-        <button
-          type="button"
-          onClick={folder ? onEditFolder : undefined}
-          className="min-w-0 flex-1 truncate text-left text-sm text-parchment"
-        >
-          {folder ? (folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name) : 'Unsorted'}
-        </button>
-        <span className="px-1 font-mono text-[11px] text-muted">{open}</span>
-        <button
-          type="button"
-          onClick={onAddTodo}
-          aria-label="New todo in this folder"
-          className="h-8 w-8 rounded-md border border-line text-muted hover:border-muted"
-        >
-          +
-        </button>
+        <h1 className="min-w-0 flex-1 truncate font-display text-2xl font-medium">
+          {folder?.emoji ? `${folder.emoji} ` : ''}
+          {folderLabel(folder)}
+        </h1>
+        {folder && (
+          <button
+            type="button"
+            onClick={onEditFolder}
+            className="shrink-0 rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
+          >
+            Edit
+          </button>
+        )}
       </header>
 
-      {!collapsed &&
-        (todos.length === 0 ? (
-          <p className="px-4 py-3 text-xs text-dim">Empty &mdash; add a task with &quot;+&quot;.</p>
-        ) : (
-          <ul>
-            {todos.map((t) => (
-              <TodoRow
-                key={t.id}
-                todo={t}
-                onToggle={() => onToggleTodo(t)}
-                onEdit={() => onEditTodo(t)}
-              />
-            ))}
-          </ul>
-        ))}
-    </section>
+      {todos.length === 0 ? (
+        <EmptyState title="Nothing here yet." hint={'Add a task with "+".'} />
+      ) : (
+        <ul className="px-4 pb-28">
+          {todos.map((t) => (
+            <TodoRow
+              key={t.id}
+              todo={t}
+              onToggle={() => onToggleTodo(t)}
+              onEdit={() => onEditTodo(t)}
+            />
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
 
@@ -275,12 +308,12 @@ function TodoRow({
   onEdit: () => void
 }) {
   return (
-    <li className="flex items-start gap-2 border-b border-line-soft px-2 py-1 last:border-b-0">
+    <li className="flex items-start gap-2 border-b border-line-soft last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
         aria-label={todo.done ? 'Mark as not done' : 'Mark as done'}
-        className="flex h-10 w-10 shrink-0 items-center justify-center"
+        className="flex h-12 w-10 shrink-0 items-center justify-center"
       >
         <span
           className={cn(
@@ -291,7 +324,7 @@ function TodoRow({
           {todo.done && '✓'}
         </span>
       </button>
-      <button type="button" onClick={onEdit} className="min-w-0 flex-1 py-2 pr-1 text-left text-sm">
+      <button type="button" onClick={onEdit} className="min-w-0 flex-1 py-3 pr-1 text-left text-sm">
         <span className={cn('block', todo.done ? 'text-dim line-through' : 'text-parchment')}>
           {todo.title}
         </span>
