@@ -28,10 +28,15 @@ export const KIND_NAMES: Record<LessonKind, string> = {
   lab: 'lab',
 }
 
+/**
+ * Backgrounds are fully opaque on purpose: the hour lines are painted behind the
+ * blocks, so a translucent fill would let the grid show through a lesson that
+ * spans more than one hour.
+ */
 export const KIND_STYLES: Record<LessonKind, string> = {
-  lecture: 'border-lecture bg-lecture-dim/60',
-  seminar: 'border-seminar bg-seminar-dim/60',
-  lab: 'border-lab bg-lab-dim/60',
+  lecture: 'border-lecture bg-lecture-dim',
+  seminar: 'border-seminar bg-seminar-dim',
+  lab: 'border-lab bg-lab-dim',
 }
 
 /** A lesson resolved to pixel offsets inside one day column. */
