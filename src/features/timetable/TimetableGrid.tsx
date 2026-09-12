@@ -21,18 +21,21 @@ import {
 
 export function TimetableGrid({
   lessons,
+  dates,
   showNow,
   onTapLesson,
   onTapSlot,
 }: {
   lessons: Lesson[]
+  /** Mon–Fri of the week on screen, for resolving per-date exceptions */
+  dates: Date[]
   /** whether the week on screen is the one we're in — gates the "now" marker */
   showNow: boolean
   onTapLesson: (lesson: Lesson) => void
   /** empty slot tapped — `startMinutes` is the hour it landed on */
   onTapSlot: (day: WeekdayIndex, startMinutes: number) => void
 }) {
-  const byDay = useMemo(() => placeWeek(lessons), [lessons])
+  const byDay = useMemo(() => placeWeek(lessons, dates), [lessons, dates])
   const now = useNow()
   const marker = showNow ? nowMarker(now) : null
 
@@ -92,23 +95,37 @@ export function TimetableGrid({
                 onClick={(e) => slotTap(d, e)}
                 aria-label={`Add a lesson on ${DAY_LABELS[d]}`}
               />
-              {byDay[d].map(({ lesson, left, width, top, height }) => (
+              {byDay[d].map(({ lesson, happening, left, width, top, height }) => (
                 <button
                   key={lesson.id}
                   type="button"
                   onClick={() => onTapLesson(lesson)}
                   style={{ left: `${left}%`, width: `${width}%`, top, height, minWidth: 22 }}
                   className={cn(
-                    'absolute overflow-hidden rounded border-[1.5px] px-0.5 py-0.5 text-left',
-                    KIND_STYLES[lesson.kind],
+                    'absolute overflow-hidden rounded px-0.5 py-0.5 text-left',
+                    happening
+                      ? `border-[1.5px] ${KIND_STYLES[lesson.kind]}`
+                      : 'border border-dashed border-line bg-panel-2',
                   )}
                 >
-                  <span className="block truncate text-[10px] leading-tight text-parchment">
+                  <span
+                    className={cn(
+                      'block truncate text-[10px] leading-tight',
+                      happening ? 'text-parchment' : 'text-dim line-through',
+                    )}
+                  >
                     {lesson.name}
-                    {lesson.group && <span className="text-muted">/{lesson.group}</span>}
+                    {lesson.group && (
+                      <span className={happening ? 'text-muted' : undefined}>/{lesson.group}</span>
+                    )}
                   </span>
                   {lesson.room && (
-                    <span className="block truncate font-mono text-[9px] leading-tight text-muted">
+                    <span
+                      className={cn(
+                        'block truncate font-mono text-[9px] leading-tight',
+                        happening ? 'text-muted' : 'text-dim',
+                      )}
+                    >
                       {lesson.room}
                     </span>
                   )}

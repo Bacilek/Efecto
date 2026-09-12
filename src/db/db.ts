@@ -49,6 +49,16 @@ export interface Lesson {
   start: string
   /** "HH:MM", after `start` */
   end: string
+  /**
+   * Dates (`YYYY-MM-DD`) the lesson is cancelled on. Ignored when `onlyDates`
+   * is set.
+   */
+  skipDates?: string[]
+  /**
+   * When non-empty, the lesson happens on these dates ONLY — for a one-off or a
+   * block that doesn't follow the weekly rhythm.
+   */
+  onlyDates?: string[]
   createdAt: number
 }
 

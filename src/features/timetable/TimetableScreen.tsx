@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, type Lesson } from '@/db/db'
-import type { WeekdayIndex } from '@/lib/date'
+import { toISODate, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { TimetableGrid } from './TimetableGrid'
@@ -9,6 +9,7 @@ import { LessonEditor, type LessonDraft } from './LessonEditor'
 import { formatShort } from '@/lib/date'
 import { DAY_START, KINDS, KIND_LABELS, KIND_NAMES, KIND_STYLES } from './layout'
 import { SemesterNav } from './SemesterNav'
+import { toggledOccurrence } from './occurrence'
 import { semesterEnd, semesterStart, semesterWeekCount } from './semester'
 import { useSemesterWeek } from './useSemesterWeek'
 
@@ -17,6 +18,8 @@ interface EditorTarget {
   lesson: Lesson | null
   day: WeekdayIndex
   start: string
+  /** which dated occurrence was tapped, so it can be cancelled on its own */
+  date: string | null
 }
 
 export function TimetableScreen() {
@@ -43,6 +46,15 @@ export function TimetableScreen() {
     setEditor(null)
   }
 
+  /** Cancel or restore the one date that was tapped, not the weekly lesson. */
+  async function toggleOccurrence() {
+    const target = editor?.lesson
+    const date = editor?.date
+    if (!target || !date) return
+    await db.lessons.update(target.id, toggledOccurrence(target, date))
+    setEditor(null)
+  }
+
   async function deleteLesson() {
     const target = editor?.lesson
     if (!target) return
@@ -57,7 +69,9 @@ export function TimetableScreen() {
         action={
           <button
             type="button"
-            onClick={() => setEditor({ lesson: null, day: 0, start: minutesToTime(DAY_START) })}
+            onClick={() =>
+              setEditor({ lesson: null, day: 0, start: minutesToTime(DAY_START), date: null })
+            }
             className="rounded-md border border-line px-2.5 py-1 text-sm text-muted hover:border-muted"
           >
             + lesson
@@ -69,10 +83,23 @@ export function TimetableScreen() {
 
       <TimetableGrid
         lessons={lessons ?? []}
+        dates={week.dates}
         showNow={week.isCurrent}
-        onTapLesson={(l) => setEditor({ lesson: l, day: l.day, start: l.start })}
+        onTapLesson={(l) =>
+          setEditor({
+            lesson: l,
+            day: l.day,
+            start: l.start,
+            date: toISODate(week.dates[l.day]),
+          })
+        }
         onTapSlot={(day, startMinutes) =>
-          setEditor({ lesson: null, day, start: minutesToTime(startMinutes) })
+          setEditor({
+            lesson: null,
+            day,
+            start: minutesToTime(startMinutes),
+            date: toISODate(week.dates[day]),
+          })
         }
       />
 
@@ -98,7 +125,9 @@ export function TimetableScreen() {
         <LessonEditor
           lesson={editor.lesson}
           defaults={{ day: editor.day, start: editor.start }}
+          occurrenceDate={editor.date}
           onSave={(d) => void saveLesson(d)}
+          onToggleOccurrence={() => void toggleOccurrence()}
           onDelete={() => void deleteLesson()}
           onClose={() => setEditor(null)}
         />

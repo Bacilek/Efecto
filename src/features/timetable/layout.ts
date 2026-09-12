@@ -1,6 +1,7 @@
 import type { Lesson, LessonKind } from '@/db/db'
-import { weekdayIndex, type WeekdayIndex } from '@/lib/date'
+import { toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
+import { happensOn } from './occurrence'
 
 /** The grid window: Mon–Fri, 08:00–20:00. */
 export const DAY_START = 8 * 60
@@ -58,6 +59,8 @@ export const KIND_STYLES: Record<LessonKind, string> = {
 /** A lesson resolved to offsets inside its day row, all percentages. */
 export interface Placed {
   lesson: Lesson
+  /** false when this date is an exception — drawn as a ghost, still tappable */
+  happening: boolean
   /** percentage from the start of the day */
   left: number
   width: number
@@ -80,7 +83,7 @@ function minutesOfDay(d: Date): number {
  * but hiding one behind another would make a mistake invisible rather than
  * obvious.
  */
-export function placeDay(lessons: Lesson[]): Placed[] {
+export function placeDay(lessons: Lesson[], dateISO: string | null = null): Placed[] {
   const sorted = [...lessons].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
   const placed: Placed[] = []
   let cluster: Lesson[] = []
@@ -92,6 +95,7 @@ export function placeDay(lessons: Lesson[]): Placed[] {
       const end = clampToWindow(timeToMinutes(lesson.end))
       placed.push({
         lesson,
+        happening: dateISO === null || happensOn(lesson, dateISO),
         left: pctOfDay(start),
         width: ((end - start) / SPAN) * 100,
         top: `${(i / cluster.length) * 100}%`,
@@ -112,11 +116,18 @@ export function placeDay(lessons: Lesson[]): Placed[] {
   return placed
 }
 
-/** Group lessons by weekday, each day already laid out. */
-export function placeWeek(lessons: Lesson[]): Record<number, Placed[]> {
+/**
+ * Group lessons by weekday, each day already laid out. `dates` are that week's
+ * Mon–Fri, used to resolve per-date exceptions; pass none to ignore them.
+ */
+export function placeWeek(lessons: Lesson[], dates?: Date[]): Record<number, Placed[]> {
   const byDay: Record<number, Placed[]> = {}
-  for (const day of DAYS) {
-    byDay[day] = placeDay(lessons.filter((l) => l.day === day))
+  for (const [i, day] of DAYS.entries()) {
+    const dateISO = dates?.[i] ? toISODate(dates[i]) : null
+    byDay[day] = placeDay(
+      lessons.filter((l) => l.day === day),
+      dateISO,
+    )
   }
   return byDay
 }

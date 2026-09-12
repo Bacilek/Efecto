@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Lesson, LessonKind } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
+import { DAY_LABELS, formatShort, fromISODate, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime, timeToMinutes } from '@/lib/time'
+import { happensOn } from './occurrence'
 import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
 
 export interface LessonDraft {
@@ -18,7 +19,9 @@ export interface LessonDraft {
 export function LessonEditor({
   lesson,
   defaults,
+  occurrenceDate,
   onSave,
+  onToggleOccurrence,
   onDelete,
   onClose,
 }: {
@@ -26,7 +29,11 @@ export function LessonEditor({
   lesson: Lesson | null
   /** day + start to prefill a new lesson with (the slot that was tapped) */
   defaults: { day: WeekdayIndex; start: string }
+  /** the date of the occurrence that was tapped (`YYYY-MM-DD`) */
+  occurrenceDate: string | null
   onSave: (draft: LessonDraft) => void
+  /** cancel or restore just `occurrenceDate` */
+  onToggleOccurrence: () => void
   onDelete: () => void
   onClose: () => void
 }) {
@@ -177,6 +184,10 @@ export function LessonEditor({
               : ''}
         </p>
 
+        {lesson && occurrenceDate && (
+          <OccurrenceRow lesson={lesson} dateISO={occurrenceDate} onToggle={onToggleOccurrence} />
+        )}
+
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -198,6 +209,56 @@ export function LessonEditor({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Cancel or restore the single date that was tapped, leaving every other week
+ * alone. Acting on one occurrence is a different thing from editing the weekly
+ * lesson, so it writes immediately and closes rather than joining the draft.
+ */
+function OccurrenceRow({
+  lesson,
+  dateISO,
+  onToggle,
+}: {
+  lesson: Lesson
+  dateISO: string
+  onToggle: () => void
+}) {
+  const happens = happensOn(lesson, dateISO)
+  const skipDates = lesson.skipDates ?? []
+  const list = (dates: string[]) => dates.map((d) => formatShort(fromISODate(d))).join(', ')
+
+  return (
+    <div className="mb-3 rounded-md border border-line-soft bg-panel-2 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs text-parchment">This week · {formatShort(fromISODate(dateISO))}</p>
+          <p className="truncate text-[11px] text-muted">
+            {lesson.onlyDates
+              ? lesson.onlyDates.length > 0
+                ? `Runs only on ${list(lesson.onlyDates)}`
+                : 'Runs on no dates'
+              : skipDates.length > 0
+                ? `Cancelled on ${list(skipDates)}`
+                : 'Runs every week'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn(
+            'shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors',
+            happens
+              ? 'border-missed-dim text-missed hover:border-missed'
+              : 'border-line text-muted hover:border-muted',
+          )}
+        >
+          {happens ? 'Cancel this one' : 'Restore this one'}
+        </button>
       </div>
     </div>
   )

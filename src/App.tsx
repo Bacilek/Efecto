@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { BottomNav, type Screen } from './app/BottomNav'
-import { backfillEmojis, seedIfEmpty, seedTimetableIfEmpty } from './db/seed'
+import {
+  backfillEmojis,
+  backfillLessonExceptions,
+  seedIfEmpty,
+  seedTimetableIfEmpty,
+} from './db/seed'
 import { RoutineTrackerScreen } from './features/routines/RoutineTrackerScreen'
 import { TodosScreen } from './features/todos/TodosScreen'
 import { CalendarScreen } from './features/calendar/CalendarScreen'
@@ -12,7 +17,7 @@ export default function App() {
 
   useEffect(() => {
     void seedIfEmpty().then(backfillEmojis)
-    void seedTimetableIfEmpty()
+    void seedTimetableIfEmpty().then(backfillLessonExceptions)
   }, [])
 
   return (

@@ -57,6 +57,10 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
 - A default timetable is seeded on first run and is fully editable.
+- **One-off exceptions:** tap a lesson and use *Cancel this one* to drop just
+  that week's occurrence, or *Restore this one* to put it back. A lesson that
+  isn't happening that week is still shown, greyed out and struck through, so
+  you can see what would have been there — and tap it to bring it back.
 - Page through the semester's weeks with the arrows; the header shows the
   **semester week, whether it's odd or even, and its dates**. Paging is clamped
   to the semester and the lessons themselves don't change — the timetable is a

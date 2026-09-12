@@ -140,12 +140,21 @@ const SEED_TIMETABLE: SeedLesson[] = [
     name: 'PV170',
     group: '09',
     room: 'S405',
+    onlyDates: ['2026-11-10'],
   },
   { day: 2, start: '08:00', end: '10:00', kind: 'lecture', name: 'MB142', room: 'A, 01026' },
   { day: 2, start: '10:00', end: '12:00', kind: 'lecture', name: 'PA015', room: 'A217' },
   { day: 2, start: '14:00', end: '16:00', kind: 'lecture', name: 'PB006', room: 'A318' },
   { day: 2, start: '18:00', end: '20:00', kind: 'lecture', name: 'PV170', room: 'Fast/D182' },
-  { day: 3, start: '14:00', end: '16:00', kind: 'lab', name: 'CORE100', room: 'G32' },
+  {
+    day: 3,
+    start: '14:00',
+    end: '16:00',
+    kind: 'lab',
+    name: 'CORE100',
+    room: 'G32',
+    skipDates: ['2026-11-19'],
+  },
   { day: 4, start: '08:00', end: '10:00', kind: 'lecture', name: 'PB007', room: '140' },
   {
     day: 4,
@@ -181,5 +190,37 @@ async function runTimetableSeed(): Promise<void> {
 
     await db.lessons.bulkAdd(rows)
     await db.meta.put({ key: 'timetableSeededAt', value: now })
+  })
+}
+
+/**
+ * Per-date exceptions for timetables seeded before those fields existed.
+ * Matched on the weekly slot (code + weekday + start) rather than an id, since
+ * ids are generated per install. Runs once, guarded by a `meta` flag, and never
+ * touches a lesson that already carries exceptions of its own.
+ */
+const SEED_EXCEPTIONS: {
+  name: string
+  day: WeekdayIndex
+  start: string
+  fields: Pick<Lesson, 'skipDates' | 'onlyDates'>
+}[] = [
+  { name: 'PV170', day: 1, start: '10:00', fields: { onlyDates: ['2026-11-10'] } },
+  { name: 'CORE100', day: 3, start: '14:00', fields: { skipDates: ['2026-11-19'] } },
+]
+
+export async function backfillLessonExceptions(): Promise<void> {
+  const done = await db.meta.get('lessonExceptions1')
+  if (done) return
+
+  await db.transaction('rw', db.lessons, db.meta, async () => {
+    const all = await db.lessons.toArray()
+    for (const e of SEED_EXCEPTIONS) {
+      const match = all.find((l) => l.name === e.name && l.day === e.day && l.start === e.start)
+      if (!match) continue
+      if (match.skipDates?.length || match.onlyDates?.length) continue
+      await db.lessons.update(match.id, e.fields)
+    }
+    await db.meta.put({ key: 'lessonExceptions1', value: Date.now() })
   })
 }

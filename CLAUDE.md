@@ -167,10 +167,27 @@ change.
     applies (`showNow`, true only for the week we're actually in).
   - `semesterWeek` returns null outside the semester. Then the view defaults to
     week 1, the jump-to-now button is disabled and no marker is drawn.
+- **Per-date exceptions** (`occurrence.ts`) break the weekly rhythm:
+  `Lesson.skipDates` cancels individual dates, `Lesson.onlyDates` restricts the
+  lesson to a list. `happensOn` resolves them; note that *having* `onlyDates`
+  makes it a whitelist, so an empty one means "never runs" — otherwise
+  cancelling the last listed date would flip the lesson back to weekly.
+  - A lesson that doesn't happen that week is still drawn, as a **ghost**
+    (dashed, struck through, dimmed) and still tappable — otherwise a lesson
+    with `onlyDates` would be uneditable in every other week.
+  - The editor's `OccurrenceRow` cancels or restores just the tapped date via
+    `toggledOccurrence`, writing immediately and closing: acting on one
+    occurrence is a different gesture from editing the weekly lesson.
+  - `placeWeek(lessons, dates)` needs that week's Mon–Fri dates to resolve any
+    of this; without them every lesson counts as happening.
 - `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
   once by `seedTimetableIfEmpty()` when the `lessons` table is empty (same
   atomic-transaction + in-flight-promise guard as `seedIfEmpty`, for the same
   <StrictMode> reason). Editing or deleting lessons afterwards sticks.
+- `backfillLessonExceptions()` applies the seeded exceptions to timetables that
+  already existed before those fields did, matching on code + weekday + start
+  since ids differ per install. Guarded by a `meta` flag; skips any lesson that
+  already has exceptions.
 
 ## Not yet done / known simplifications
 
