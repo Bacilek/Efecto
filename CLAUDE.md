@@ -132,6 +132,16 @@ week and holds no dates, so it needs no `Entry` equivalent.
 - Tap an empty slot to add a lesson prefilled with that hour (`hourAt` snaps the
   tap down to the hour, capped at `DAY_END - 60`); tap a lesson to edit it.
   `LessonEditor` is a bottom sheet mirroring `RoutineEditor`.
+- A brass **"now" line** marks the current time to the minute in today's column,
+  and everything already behind it is dimmed (`bg-ink/60` above the blocks,
+  `pointer-events-none` so it never eats a tap): whole columns for earlier
+  weekdays, a partial one for today. `nowMarker` / `elapsedHeight` in `layout.ts`
+  do the maths; `lib/useNow.ts` re-renders every 30 s.
+  - Both go quiet at the **weekend** — the timetable is a weekday template, so
+    there is no column to point at, and greying all five days from Saturday
+    morning would say nothing useful.
+  - Outside 08:00–20:00 there is no line; the shading still applies (before
+    08:00 nothing of today is dimmed, after 20:00 all of it is).
 - `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
   once by `seedTimetableIfEmpty()` when the `lessons` table is empty (same
   atomic-transaction + in-flight-promise guard as `seedIfEmpty`, for the same

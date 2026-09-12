@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import type { Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
+import { useNow } from '@/lib/useNow'
 import {
   DAYS,
   DAY_START,
@@ -10,7 +11,9 @@ import {
   HOURS,
   KIND_STYLES,
   PX_PER_MIN,
+  elapsedHeight,
   hourAt,
+  nowMarker,
   placeWeek,
 } from './layout'
 
@@ -25,6 +28,8 @@ export function TimetableGrid({
   onTapSlot: (day: WeekdayIndex, startMinutes: number) => void
 }) {
   const byDay = useMemo(() => placeWeek(lessons), [lessons])
+  const now = useNow()
+  const marker = nowMarker(now)
 
   function slotTap(day: WeekdayIndex, e: MouseEvent<HTMLButtonElement>) {
     const { top } = e.currentTarget.getBoundingClientRect()
@@ -97,11 +102,39 @@ export function TimetableGrid({
                     )}
                   </button>
                 ))}
+
+                <ElapsedShade height={elapsedHeight(d, now)} />
+                {marker?.day === d && <NowLine top={marker.top} />}
               </div>
             ))}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Dims the part of a day that has already happened. Sits above the lesson
+ * blocks so it shades them too, and never swallows a tap.
+ */
+function ElapsedShade({ height }: { height: number }) {
+  if (height <= 0) return null
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 bg-ink/60"
+      style={{ height }}
+      aria-hidden
+    />
+  )
+}
+
+/** The current time, to the minute, across today's column. */
+function NowLine({ top }: { top: number }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 z-10" style={{ top }} aria-hidden>
+      <div className="h-px bg-brass" />
+      <div className="absolute -top-[3px] left-0 h-[7px] w-[7px] rounded-full bg-brass" />
     </div>
   )
 }

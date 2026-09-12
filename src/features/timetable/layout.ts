@@ -1,5 +1,5 @@
 import type { Lesson, LessonKind } from '@/db/db'
-import type { WeekdayIndex } from '@/lib/date'
+import { weekdayIndex, type WeekdayIndex } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 
 /** The grid window: Mon–Fri, 08:00–20:00. */
@@ -98,6 +98,49 @@ export function placeWeek(lessons: Lesson[]): Record<number, Placed[]> {
     byDay[day] = placeDay(lessons.filter((l) => l.day === day))
   }
   return byDay
+}
+
+/** Minutes since midnight for a `Date`. */
+function minutesOfDay(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes()
+}
+
+/** Where the "now" line sits, or null when it falls outside the grid. */
+export interface NowMarker {
+  day: WeekdayIndex
+  /** pixels from the top of the grid */
+  top: number
+}
+
+/**
+ * The current time as a grid position. Null at the weekend (the timetable is a
+ * weekday template — there is no column to point at) and outside 08:00–20:00.
+ */
+export function nowMarker(now: Date): NowMarker | null {
+  const day = weekdayIndex(now)
+  if (day > 4) return null
+
+  const minutes = minutesOfDay(now)
+  if (minutes < DAY_START || minutes > DAY_END) return null
+
+  return { day, top: (minutes - DAY_START) * PX_PER_MIN }
+}
+
+/**
+ * How much of a day column is already behind us, in pixels: the full height for
+ * a day earlier in the week, a part of today, nothing for what's still ahead.
+ *
+ * Returns 0 for every day at the weekend. Greying the entire board from Saturday
+ * morning would say nothing useful — by then the week reads as the one ahead.
+ */
+export function elapsedHeight(day: WeekdayIndex, now: Date): number {
+  const today = weekdayIndex(now)
+  if (today > 4) return 0
+  if (day < today) return GRID_HEIGHT
+  if (day > today) return 0
+
+  const elapsed = (minutesOfDay(now) - DAY_START) * PX_PER_MIN
+  return Math.min(Math.max(elapsed, 0), GRID_HEIGHT)
 }
 
 /**

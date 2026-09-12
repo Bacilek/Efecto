@@ -55,6 +55,9 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
 - A default timetable is seeded on first run and is fully editable.
+- On a weekday, a line marks the current time and the part of the week that has
+  already happened is dimmed. At the weekend neither is shown — the timetable
+  reads as the week ahead.
 
 ## Development
 
