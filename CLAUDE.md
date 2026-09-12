@@ -133,9 +133,8 @@ hour is ~25px and a two-hour lesson ~50px, so long codes truncate. Going back to
 a fixed pixels-per-minute scale with sideways scrolling is a one-constant
 change.
 
-- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?,
-  onlyDates?, createdAt }` — `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM"
-  inside the window.
+- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, createdAt }`
+  - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
 - `kind` is `lecture` | `seminar` | `lab` — the user's L / C / LAB — and picks the
   block colour (green / yellow / blue, tokens `lecture` / `seminar` / `lab`).
   `KIND_LABELS`, `KIND_NAMES` and `KIND_STYLES` in `layout.ts` are the single

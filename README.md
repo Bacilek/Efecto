@@ -101,9 +101,8 @@ Everything is stored locally in IndexedDB (`efecto` database):
 
 - `routines` — `{ id, name, order, activeDays[0..6], time?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
-- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day
-  (0=Mon..4=Fri), start, end, skipDates?, onlyDates? }` — the last two are the
-  per-date exceptions
+- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day, start, end }`
+  plus the per-date exceptions `skipDates?` / `onlyDates?`; `day` is 0=Mon..4=Fri
 - `meta` — key/value (seed marker, schema version)
 
 Default routines and a default timetable are seeded once on first run — each
