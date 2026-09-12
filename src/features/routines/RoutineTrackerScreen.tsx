@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, entryId, newId, type Entry, type Routine } from '@/db/db'
-import { toISODate, todayISO } from '@/lib/date'
+import { fromISODate, isoWeek, toISODate, todayISO, weekParity } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { RoutineGrid } from './RoutineGrid'
 import { RoutineEditor, type RoutineDraft } from './RoutineEditor'
 import { WeekNav } from './WeekNav'
 import { useWeek } from './useWeek'
-import { compareRoutines, nextStatus } from './status'
+import { compareRoutines, nextStatus, resolveCellState } from './status'
 import { weekCompletion } from './stats'
 
 type EditorTarget = { routine: Routine | null } | null
@@ -35,15 +35,21 @@ export function RoutineTrackerScreen() {
     return m
   }, [weekEntries])
 
+  const parity = weekParity(isoWeek(week.monday))
+
   const weekStats = useMemo(
-    () => weekCompletion(routines ?? [], week.dates, entryMap, todayISO()),
-    [routines, week.dates, entryMap],
+    () => weekCompletion(routines ?? [], week.dates, entryMap, todayISO(), parity),
+    [routines, week.dates, entryMap, parity],
   )
 
   async function tapCell(routine: Routine, dateISO: string) {
     const id = entryId(routine.id, dateISO)
     const current = await db.entries.get(id)
-    const next = nextStatus(current?.status, dateISO < todayISO())
+    // Ask what an empty cell would render as rather than assuming "past = red":
+    // a weekly target derives no miss, so its empty step is visible.
+    const clearsToMissed =
+      resolveCellState(routine, fromISODate(dateISO), undefined, todayISO(), parity) === 'missed'
+    const next = nextStatus(current?.status, clearsToMissed)
     if (next === undefined) {
       await db.entries.delete(id)
     } else {
@@ -64,6 +70,8 @@ export function RoutineTrackerScreen() {
         name: draft.name,
         emoji: draft.emoji || undefined,
         activeDays: draft.activeDays,
+        timesPerWeek: draft.timesPerWeek ?? undefined,
+        weeks: draft.weeks ?? undefined,
       })
     } else {
       const maxOrder = (routines ?? []).reduce((m, r) => Math.max(m, r.order), -1)
@@ -73,6 +81,8 @@ export function RoutineTrackerScreen() {
         emoji: draft.emoji || undefined,
         order: maxOrder + 1,
         activeDays: draft.activeDays,
+        timesPerWeek: draft.timesPerWeek ?? undefined,
+        weeks: draft.weeks ?? undefined,
         archived: false,
         createdAt: Date.now(),
       })
@@ -119,6 +129,7 @@ export function RoutineTrackerScreen() {
         <RoutineGrid
           dates={week.dates}
           routines={routines ?? []}
+          parity={parity}
           entries={entryMap}
           onTapCell={(r, d) => void tapCell(r, d)}
           onEditRoutine={(r) => setEditor({ routine: r })}

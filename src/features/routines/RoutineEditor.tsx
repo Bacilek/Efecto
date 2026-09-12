@@ -1,15 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Routine } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, type WeekdayIndex } from '@/lib/date'
+import { DAY_LABELS, type WeekdayIndex, type WeekParity } from '@/lib/date'
 
 export interface RoutineDraft {
   name: string
   emoji: string
   activeDays: WeekdayIndex[]
+  /** null = bound to `activeDays`; a number = that many marks a week, any day */
+  timesPerWeek: number | null
+  /** null = every week */
+  weeks: WeekParity | null
 }
 
 const ALL_DAYS: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6]
+const COUNTS = [1, 2, 3, 4, 5, 6, 7]
+
+/** "Every week" plus the two parities, in the order the picker shows them. */
+const WEEK_OPTIONS: { value: WeekParity | null; label: string }[] = [
+  { value: null, label: 'Every week' },
+  { value: 'odd', label: 'Odd' },
+  { value: 'even', label: 'Even' },
+]
 
 export function RoutineEditor({
   routine,
@@ -26,11 +38,15 @@ export function RoutineEditor({
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('')
   const [activeDays, setActiveDays] = useState<WeekdayIndex[]>(ALL_DAYS)
+  const [timesPerWeek, setTimesPerWeek] = useState<number | null>(null)
+  const [weeks, setWeeks] = useState<WeekParity | null>(null)
 
   useEffect(() => {
     setName(routine?.name ?? '')
     setEmoji(routine?.emoji ?? '')
     setActiveDays(routine?.activeDays ?? ALL_DAYS)
+    setTimesPerWeek(routine?.timesPerWeek ?? null)
+    setWeeks(routine?.weeks ?? null)
   }, [routine])
 
   function toggleDay(d: WeekdayIndex) {
@@ -42,7 +58,7 @@ export function RoutineEditor({
   function submit() {
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave({ name: trimmed, emoji: emoji.trim(), activeDays })
+    onSave({ name: trimmed, emoji: emoji.trim(), activeDays, timesPerWeek, weeks })
   }
 
   return (
@@ -79,22 +95,48 @@ export function RoutineEditor({
           </div>
         </div>
 
-        <label className="mb-1.5 block text-xs text-muted">Active on</label>
+        <label className="mb-1.5 block text-xs text-muted">Schedule</label>
+        <div className="mb-3 flex gap-1.5">
+          <Choice active={timesPerWeek === null} onClick={() => setTimesPerWeek(null)}>
+            Set days
+          </Choice>
+          <Choice active={timesPerWeek !== null} onClick={() => setTimesPerWeek(3)}>
+            Times a week
+          </Choice>
+        </div>
+
+        {timesPerWeek === null ? (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">Active on</label>
+            <div className="mb-3 flex gap-1.5">
+              {ALL_DAYS.map((d) => (
+                <Choice key={d} active={activeDays.includes(d)} onClick={() => toggleDay(d)}>
+                  {DAY_LABELS[d]}
+                </Choice>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">
+              How many times a week — any day counts
+            </label>
+            <div className="mb-3 flex gap-1.5">
+              {COUNTS.map((n) => (
+                <Choice key={n} active={timesPerWeek === n} onClick={() => setTimesPerWeek(n)}>
+                  {n}×
+                </Choice>
+              ))}
+            </div>
+          </>
+        )}
+
+        <label className="mb-1.5 block text-xs text-muted">Repeats</label>
         <div className="mb-4 flex gap-1.5">
-          {ALL_DAYS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => toggleDay(d)}
-              className={cn(
-                'h-9 flex-1 rounded-md border text-xs transition-colors',
-                activeDays.includes(d)
-                  ? 'border-brass-dim bg-brass-dim/30 text-parchment'
-                  : 'border-line text-dim',
-              )}
-            >
-              {DAY_LABELS[d]}
-            </button>
+          {WEEK_OPTIONS.map((o) => (
+            <Choice key={o.label} active={weeks === o.value} onClick={() => setWeeks(o.value)}>
+              {o.label}
+            </Choice>
           ))}
         </div>
 
@@ -121,5 +163,29 @@ export function RoutineEditor({
         </div>
       </div>
     </div>
+  )
+}
+
+/** One option in a row of segmented buttons. */
+function Choice({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'h-9 flex-1 rounded-md border text-xs transition-colors',
+        active ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-dim',
+      )}
+    >
+      {children}
+    </button>
   )
 }

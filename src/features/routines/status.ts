@@ -1,5 +1,5 @@
 import type { Entry, Routine, RoutineStatus } from '@/db/db'
-import { toISODate, weekdayIndex } from '@/lib/date'
+import { toISODate, weekdayIndex, type WeekParity } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 
 /**
@@ -17,7 +17,18 @@ export function resolveCellState(
   date: Date,
   entry: Entry | undefined,
   todayISO: string,
+  parity: WeekParity | null = null,
 ): CellState {
+  // a routine bound to the other parity doesn't apply anywhere in this week
+  if (routine.weeks && parity && routine.weeks !== parity) return 'off'
+
+  if (routine.timesPerWeek) {
+    // A weekly target owes no particular day, so every day is markable and an
+    // unmarked past day is NOT a miss — missing the target is a weekly fact,
+    // accounted for in `weekCompletion`, not something a single cell can show.
+    return entry ? entry.status : 'pending'
+  }
+
   if (!routine.activeDays.includes(weekdayIndex(date))) return 'off'
   if (entry) return entry.status
   return toISODate(date) < todayISO ? 'missed' : 'pending'
@@ -27,20 +38,23 @@ export function resolveCellState(
  * Tap cycle. 1 tap = done (green), 2 = missed (red), 3 = busy (blue) — an
  * excused skip, which `dayCompletion` leaves out of the percentage.
  *
- * Today/future: undefined → done → missed → busy → undefined (empty box).
+ * Normally: undefined → done → missed → busy → undefined (empty box).
  *
- * Past: an unmarked cell already renders as `missed` (derived, see
- * `resolveCellState`), so there the cycle runs over the VISIBLE state and
- * rotates missed → busy → done → missed. The empty step is dropped: it looks
- * identical to red and would stall a tap. A past cell therefore keeps an entry
- * once marked — cleared and `missed` read the same on screen and count the
- * same in the stats, so nothing observable changes.
+ * When clearing the cell would render as `missed` anyway — a past day on a
+ * day-bound routine, see `resolveCellState` — the empty step is invisible and
+ * gets dropped: the cycle runs over the VISIBLE state and rotates
+ * missed → busy → done → missed. Such a cell keeps an entry once marked, which
+ * changes nothing observable, since cleared and `missed` read the same on
+ * screen and count the same in the stats.
+ *
+ * Pass `clearsToMissed` rather than "is it past": a weekly-target routine
+ * derives no miss, so its past cells do have a visible empty step.
  */
 export function nextStatus(
   current: RoutineStatus | undefined,
-  isPast: boolean,
+  clearsToMissed: boolean,
 ): RoutineStatus | undefined {
-  if (isPast) {
+  if (clearsToMissed) {
     switch (current ?? 'missed') {
       case 'missed':
         return 'busy'

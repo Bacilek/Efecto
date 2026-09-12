@@ -1,6 +1,6 @@
 import type { Entry, Routine } from '@/db/db'
 import { entryId } from '@/db/db'
-import { toISODate } from '@/lib/date'
+import { toISODate, type WeekParity } from '@/lib/date'
 import { resolveCellState } from './status'
 
 export interface Completion {
@@ -26,18 +26,24 @@ function toPct(done: number, total: number): number {
  * `done`. `missed` (and past unmarked) counts against the total; `busy` is an
  * excused skip and drops out of the ratio entirely, like an off-day — it can
  * neither raise nor lower the percentage.
+ *
+ * Weekly-target routines (`timesPerWeek`) are left out altogether: they owe no
+ * particular day, so they can't raise or lower one day's percentage. They are
+ * counted once for the whole week in `weekCompletion`.
  */
 export function dayCompletion(
   routines: Routine[],
   date: Date,
   entries: Map<string, Entry>,
   todayISO: string,
+  parity: WeekParity | null = null,
 ): Completion {
   const dISO = toISODate(date)
   let done = 0
   let total = 0
   for (const r of routines) {
-    const state = resolveCellState(r, date, entries.get(entryId(r.id, dISO)), todayISO)
+    if (r.timesPerWeek) continue
+    const state = resolveCellState(r, date, entries.get(entryId(r.id, dISO)), todayISO, parity)
     // `off` never applied; `busy` is excused after the fact. Both leave the ratio.
     if (state === 'off' || state === 'busy') continue
     total++
@@ -46,19 +52,53 @@ export function dayCompletion(
   return { done, total, pct: toPct(done, total) }
 }
 
-/** Completion across the whole week (sum of every day's applied routines). */
+/** Whether a routine applies at all in a week of this parity. */
+export function appliesInWeek(routine: Routine, parity: WeekParity | null): boolean {
+  return !(routine.weeks && parity && routine.weeks !== parity)
+}
+
+/**
+ * How many of a weekly target's marks are in: `done` marks across the week,
+ * capped at the target so extra sessions can't push the week over 100 %.
+ */
+export function weeklyTargetProgress(
+  routine: Routine,
+  dates: Date[],
+  entries: Map<string, Entry>,
+): { done: number; target: number } {
+  const target = routine.timesPerWeek ?? 0
+  const marks = dates.filter(
+    (d) => entries.get(entryId(routine.id, toISODate(d)))?.status === 'done',
+  ).length
+  return { done: Math.min(marks, target), target }
+}
+
+/**
+ * Completion across the whole week: every day's day-bound routines, plus each
+ * weekly target counted once for the week rather than once per day.
+ */
 export function weekCompletion(
   routines: Routine[],
   dates: Date[],
   entries: Map<string, Entry>,
   todayISO: string,
+  parity: WeekParity | null = null,
 ): Completion {
   let done = 0
   let total = 0
+
   for (const date of dates) {
-    const c = dayCompletion(routines, date, entries, todayISO)
+    const c = dayCompletion(routines, date, entries, todayISO, parity)
     done += c.done
     total += c.total
   }
+
+  for (const r of routines) {
+    if (!r.timesPerWeek || !appliesInWeek(r, parity)) continue
+    const p = weeklyTargetProgress(r, dates, entries)
+    done += p.done
+    total += p.target
+  }
+
   return { done, total, pct: toPct(done, total) }
 }

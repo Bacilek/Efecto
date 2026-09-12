@@ -14,6 +14,17 @@ export interface Routine {
   activeDays: WeekdayIndex[]
   /** optional "HH:MM", used only for column ordering */
   time?: string
+  /**
+   * When set, the routine is a **weekly target** of this many marks rather than
+   * an obligation on particular weekdays: every day becomes markable,
+   * `activeDays` is ignored and an unmarked past day is not a miss.
+   */
+  timesPerWeek?: number
+  /**
+   * Restrict the routine to odd or even **ISO** weeks (the parity `WeekNav`
+   * displays). Unset = every week.
+   */
+  weeks?: WeekParity
   archived: boolean
   createdAt: number
 }

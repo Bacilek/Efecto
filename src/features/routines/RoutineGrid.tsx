@@ -2,9 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Entry, Routine } from '@/db/db'
 import { entryId } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, formatShort, isSameDay, toISODate, todayISO } from '@/lib/date'
+import {
+  DAY_LABELS,
+  formatShort,
+  isSameDay,
+  toISODate,
+  todayISO,
+  type WeekParity,
+} from '@/lib/date'
 import { Cell } from './Cell'
-import { dayCompletion } from './stats'
+import { appliesInWeek, dayCompletion, weeklyTargetProgress } from './stats'
 import { resolveCellState } from './status'
 
 type DragState = { id: string; dx: number; from: number; to: number; w: number }
@@ -18,6 +25,7 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
 export function RoutineGrid({
   dates,
   routines,
+  parity,
   entries,
   onTapCell,
   onEditRoutine,
@@ -25,6 +33,8 @@ export function RoutineGrid({
 }: {
   dates: Date[]
   routines: Routine[]
+  /** parity of the week on screen, for odd/even-only routines */
+  parity: WeekParity | null
   entries: Map<string, Entry>
   onTapCell: (routine: Routine, dateISO: string) => void
   onEditRoutine: (routine: Routine) => void
@@ -150,8 +160,20 @@ export function RoutineGrid({
                   title={r.name}
                   aria-label={r.name}
                 >
+                  {r.timesPerWeek && appliesInWeek(r, parity) && (
+                    <span className="mb-0.5 font-mono text-[9px] leading-none text-dim">
+                      {weeklyTargetProgress(r, dates, entries).done}/{r.timesPerWeek}
+                    </span>
+                  )}
                   {r.emoji ? (
-                    <span className="text-xl leading-none">{r.emoji}</span>
+                    <span
+                      className={cn(
+                        'text-xl leading-none',
+                        !appliesInWeek(r, parity) && 'opacity-30',
+                      )}
+                    >
+                      {r.emoji}
+                    </span>
                   ) : (
                     <span className="max-h-14 w-4 rotate-180 truncate text-[11px] leading-tight text-muted [writing-mode:vertical-rl]">
                       {r.name}
@@ -166,7 +188,7 @@ export function RoutineGrid({
           {dates.map((date, i) => {
             const isToday = isSameDay(date, now)
             const dISO = toISODate(date)
-            const day = dayCompletion(routines, date, entries, today)
+            const day = dayCompletion(routines, date, entries, today, parity)
             return (
               <tr key={dISO}>
                 <th
@@ -188,7 +210,7 @@ export function RoutineGrid({
                 </th>
                 {visualRoutines.map((r) => {
                   const entry = entries.get(entryId(r.id, dISO))
-                  const state = resolveCellState(r, date, entry, today)
+                  const state = resolveCellState(r, date, entry, today, parity)
                   return (
                     <td
                       key={r.id}
