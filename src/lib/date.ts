@@ -54,6 +54,31 @@ export function weekDates(d: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => addDays(mon, i))
 }
 
+/**
+ * Monday 00:00 of the week containing 1 January of `year`. May land in the
+ * previous December — that week is still the year's first.
+ */
+export function firstMondayOfYear(year: number): Date {
+  return mondayOf(new Date(year, 0, 1))
+}
+
+/**
+ * Monday 00:00 of the week containing 31 December of `year`. That week may run
+ * on into the next January.
+ */
+export function lastMondayOfYear(year: number): Date {
+  return mondayOf(new Date(year, 11, 31))
+}
+
+/**
+ * Whole weeks from `a` to `b`, comparing the Mondays of their weeks; negative
+ * when `b` is earlier. Rounded, so DST shifts can't bias the result.
+ */
+export function weeksBetween(a: Date, b: Date): number {
+  const ms = mondayOf(b).getTime() - mondayOf(a).getTime()
+  return Math.round(ms / (7 * 24 * 60 * 60 * 1000))
+}
+
 /** `dd.mm` */
 export function formatShort(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`

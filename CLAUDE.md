@@ -54,7 +54,11 @@ src/
 
 Layout: **rows = 7 days (Mon–Sun) of the selected week, columns = routines.**
 Horizontally scrollable; day column and header row are sticky. Today's row is
-highlighted. `WeekNav` moves between weeks.
+highlighted. `WeekNav` moves between weeks, clamped by `useWeek` to the calendar year
+containing today — back to the week holding 1 January, forward to the week
+holding 31 December (`canPrev` / `canNext` grey the arrows out at the edges).
+An edge week may spill into the neighbouring year; the limit is the week, not
+the date.
 
 Data (`db/db.ts`):
 - `Routine { id, name, emoji?, order, activeDays: WeekdayIndex[], time?, archived, createdAt }`

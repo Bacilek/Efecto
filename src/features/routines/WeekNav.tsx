@@ -9,7 +9,8 @@ export function WeekNav({ week }: { week: WeekState }) {
       <button
         type="button"
         onClick={week.prev}
-        className="rounded-md border border-line px-2.5 py-1 font-mono text-xs text-muted hover:border-muted"
+        disabled={!week.canPrev}
+        className={arrow}
         aria-label="Předchozí týden"
       >
         ‹
@@ -28,7 +29,8 @@ export function WeekNav({ week }: { week: WeekState }) {
       <button
         type="button"
         onClick={week.next}
-        className="rounded-md border border-line px-2.5 py-1 font-mono text-xs text-muted hover:border-muted"
+        disabled={!week.canNext}
+        className={arrow}
         aria-label="Další týden"
       >
         ›
@@ -36,3 +38,6 @@ export function WeekNav({ week }: { week: WeekState }) {
     </div>
   )
 }
+
+const arrow =
+  'rounded-md border border-line px-2.5 py-1 font-mono text-xs text-muted transition-colors enabled:hover:border-muted disabled:opacity-30'
