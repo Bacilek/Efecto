@@ -4,6 +4,7 @@ import { backfillEmojis, seedIfEmpty } from './db/seed'
 import { RoutineTrackerScreen } from './features/routines/RoutineTrackerScreen'
 import { TodosScreen } from './features/todos/TodosScreen'
 import { CalendarScreen } from './features/calendar/CalendarScreen'
+import { TimetableScreen } from './features/timetable/TimetableScreen'
 import { SettingsScreen } from './features/settings/SettingsScreen'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         {screen === 'routines' && <RoutineTrackerScreen />}
         {screen === 'todos' && <TodosScreen />}
         {screen === 'calendar' && <CalendarScreen />}
+        {screen === 'timetable' && <TimetableScreen />}
         {screen === 'settings' && <SettingsScreen />}
       </main>
       <BottomNav active={screen} onChange={setScreen} />

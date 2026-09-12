@@ -9,6 +9,8 @@ interface Backup {
   exportedAt: string
   routines: unknown[]
   entries: unknown[]
+  /** added in backup v2; absent in older files */
+  lessons?: unknown[]
 }
 
 export function SettingsScreen() {
@@ -16,13 +18,18 @@ export function SettingsScreen() {
   const [msg, setMsg] = useState<string | null>(null)
 
   async function exportData() {
-    const [routines, entries] = await Promise.all([db.routines.toArray(), db.entries.toArray()])
+    const [routines, entries, lessons] = await Promise.all([
+      db.routines.toArray(),
+      db.entries.toArray(),
+      db.lessons.toArray(),
+    ])
     const backup: Backup = {
       app: 'efecto',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       routines,
       entries,
+      lessons,
     }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -37,13 +44,16 @@ export function SettingsScreen() {
     try {
       const parsed = JSON.parse(await file.text()) as Backup
       if (parsed.app !== 'efecto') throw new Error('Not a valid Efecto backup.')
-      await db.transaction('rw', db.routines, db.entries, async () => {
+      await db.transaction('rw', db.routines, db.entries, db.lessons, async () => {
         await db.routines.clear()
         await db.entries.clear()
+        await db.lessons.clear()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await db.routines.bulkAdd(parsed.routines as any[])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await db.entries.bulkAdd(parsed.entries as any[])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await db.lessons.bulkAdd((parsed.lessons ?? []) as any[])
       })
       setMsg('Data imported.')
     } catch (e) {
@@ -53,9 +63,10 @@ export function SettingsScreen() {
 
   async function resetData() {
     if (!confirm('Delete all data and restore the default routines?')) return
-    await db.transaction('rw', db.routines, db.entries, db.meta, async () => {
+    await db.transaction('rw', db.routines, db.entries, db.lessons, db.meta, async () => {
       await db.routines.clear()
       await db.entries.clear()
+      await db.lessons.clear()
       await db.meta.clear()
     })
     await seedIfEmpty()
@@ -66,7 +77,10 @@ export function SettingsScreen() {
     <>
       <ScreenHeader title="Settings" />
       <div className="space-y-3 px-4 pb-8">
-        <Row label="Back up data" desc="Downloads a JSON file with every routine and mark.">
+        <Row
+          label="Back up data"
+          desc="Downloads a JSON file with routines, marks and the timetable."
+        >
           <button className={btn} onClick={() => void exportData()}>
             Export
           </button>

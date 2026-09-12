@@ -12,6 +12,7 @@ Capacitor).
 | Routine tracker (weekly grid) | done (v1) |
 | Todos | stub |
 | Calendar | stub |
+| Timetable (weekly, Mon–Fri) | done (v1) |
 | Cloud sync | later |
 | Android build (Capacitor) | config only |
 
@@ -41,6 +42,15 @@ state:
 - Tap a column header to edit the routine (name, time, active weekdays, delete).
   `time` is optional and only orders the columns.
 
+## Timetable
+
+A weekly school timetable: **Mon–Fri, 08:00–20:00**. It's a template — it
+repeats every week and isn't tied to dates.
+
+- Tap any empty slot to add a lesson; it's prefilled with the hour you tapped.
+- Tap a lesson to edit its subject, room, day and times, or delete it.
+- Lessons that overlap are shown side by side, so a clash is visible.
+
 ## Development
 
 Requires **Node.js 20 LTS**.
@@ -69,6 +79,7 @@ Everything is stored locally in IndexedDB (`efecto` database):
 
 - `routines` — `{ id, name, order, activeDays[0..6], time?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
+- `lessons` — timetable entries, `{ id, name, room?, day (0=Mon..4=Fri), start, end }`
 - `meta` — key/value (seed marker, schema version)
 
 Default routines are seeded once on first run and are fully editable.

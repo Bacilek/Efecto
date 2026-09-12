@@ -1,5 +1,6 @@
 import type { Entry, Routine, RoutineStatus } from '@/db/db'
 import { toISODate, weekdayIndex } from '@/lib/date'
+import { timeToMinutes } from '@/lib/time'
 
 /**
  * What a cell shows for a routine on a given date.
@@ -62,18 +63,16 @@ export function nextStatus(
   }
 }
 
-/** Minutes since midnight for a "H:MM"/"HH:MM" string; blank sorts last. */
-export function timeToMinutes(time: string | undefined): number {
-  if (!time) return 24 * 60 + 1
-  const [h, m] = time.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
+/** Minutes since midnight, with a blank time sorting last. */
+function orderTime(time: string | undefined): number {
+  return time ? timeToMinutes(time) : 24 * 60 + 1
 }
 
 /** Column ordering: manual `order` (set by drag), then time, then name. */
 export function compareRoutines(a: Routine, b: Routine): number {
   if (a.order !== b.order) return a.order - b.order
-  const ta = timeToMinutes(a.time)
-  const tb = timeToMinutes(b.time)
+  const ta = orderTime(a.time)
+  const tb = orderTime(b.time)
   if (ta !== tb) return ta - tb
   return a.name.localeCompare(b.name)
 }

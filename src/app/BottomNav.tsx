@@ -1,11 +1,12 @@
 import { cn } from '@/lib/cn'
 
-export type Screen = 'routines' | 'todos' | 'calendar' | 'settings'
+export type Screen = 'routines' | 'todos' | 'calendar' | 'timetable' | 'settings'
 
 const TABS: { id: Screen; label: string; icon: string }[] = [
   { id: 'routines', label: 'Routines', icon: '▦' },
   { id: 'todos', label: 'Todos', icon: '☑' },
   { id: 'calendar', label: 'Calendar', icon: '▤' },
+  { id: 'timetable', label: 'Timetable', icon: '▥' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ]
 

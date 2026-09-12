@@ -11,6 +11,7 @@ replaces a pile of productivity tools:
 1. **Routine / habit tracker** — the core, built first. Weekly grid.
 2. **Todos** — built-in task lists (next).
 3. **Calendar** — events + a day view (after todos).
+3b. **Timetable** — a weekly school timetable (built alongside; see below).
 4. Later: cloud sync across devices, reminders/notifications, stats.
 
 Design language: minimal, calm, dark, a bit "paper + brass". No clutter, few
@@ -41,13 +42,15 @@ Distribution: **installable PWA now**, **Google Play app later** via Capacitor
 src/
   main.tsx  App.tsx            # shell: screen state + <BottomNav>
   index.css                    # Tailwind layers, safe-area handling
-  app/BottomNav.tsx            # Rutiny | Úkoly | Kalendář | Nastavení
+  app/BottomNav.tsx            # Routines | Todos | Calendar | Timetable | Settings
   lib/date.ts                  # week math; weekday index 0=Mon..6=Sun (NOT JS getDay)
   lib/cn.ts
-  db/db.ts                     # Dexie schema (routines, entries, meta)
+  lib/time.ts                  # "HH:MM" <-> minutes since midnight
+  db/db.ts                     # Dexie schema v2 (routines, entries, lessons, meta)
   db/seed.ts                   # default routines, inserted once when empty
   features/
     routines/                  # THE feature — see below
+    timetable/                 # school timetable — see below
     todos/  calendar/  settings/
   ui/                          # ScreenHeader, EmptyState, ...
 ```
@@ -108,9 +111,28 @@ week total (`weekCompletion` = sum over the 7 days).
 Live data via `dexie-react-hooks` `useLiveQuery` — mutations just write to Dexie
 and the grid re-renders.
 
+## Timetable — how it works
+
+A weekly template, Mon–Fri, 08:00–20:00 (`features/timetable/layout.ts` owns
+that window: `DAY_START`, `DAY_END`, `DAYS`, `PX_PER_MIN`). It repeats every
+week and holds no dates, so it needs no `Entry` equivalent.
+
+- `Lesson { id, name, room?, day, start, end, createdAt }` — `day` is 0=Mon..4=Fri,
+  `start`/`end` are "HH:MM" inside the window.
+- Layout is absolute positioning, not a CSS grid: `placeDay` converts each
+  lesson to `top`/`height` from its minutes. Lessons that overlap in time split
+  the column's width side by side, so a clash stays visible instead of hiding
+  one block behind another.
+- Tap an empty slot to add a lesson prefilled with that hour (`hourAt` snaps the
+  tap down to the hour, capped at `DAY_END - 60`); tap a lesson to edit it.
+  `LessonEditor` is a bottom sheet mirroring `RoutineEditor`.
+- Nothing is seeded — the grid starts empty.
+
 ## Not yet done / known simplifications
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
+- Timetable: no per-lesson colours, no teacher field, no week A/B parity, and it
+  isn't linked to the calendar or to routines.
 - Todos / Calendar are stubs.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
