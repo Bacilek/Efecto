@@ -45,9 +45,9 @@ state:
 ## Timetable
 
 A weekly school timetable: **Mon–Fri, 08:00–20:00**, laid out like the routine
-grid — **rows are days, time runs left to right** (scroll sideways; the day
-labels stay put). It's a template: it repeats every week and isn't tied to
-dates.
+grid — **rows are days, time runs left to right**. The whole window fits the
+screen, so there is nothing to scroll. It's a template: it repeats every week
+and isn't tied to dates.
 
 Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 (LAB, blue)**, and carries a subject code, an optional seminar group and a room —

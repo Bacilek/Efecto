@@ -118,11 +118,13 @@ that window: `DAY_START`, `DAY_END`, `DAYS`, `PX_PER_MIN`). It repeats every
 week and holds no dates, so it needs no `Entry` equivalent.
 
 Layout: **rows = the 5 weekdays, the horizontal axis is time** — the same
-reading direction as the routine grid. Horizontally scrollable with a sticky
-day-label gutter (`GUTTER`). One minute is one pixel, so an hour is 60px and the
-grid is 720px wide by 260px tall: the whole week fits on a phone without
-vertical scrolling, and a two-hour lesson is 120px — wide enough for its code
-and room.
+reading direction as the routine grid. Horizontal offsets are **percentages**
+(`pctOfDay`, `SPAN`), so all of 08:00–20:00 always fits the viewport exactly and
+nothing scrolls in either direction; only the day-label gutter (`GUTTER`) and the
+row height are fixed pixels. The trade-off is narrow blocks: on a 360px phone an
+hour is ~25px and a two-hour lesson ~50px, so long codes truncate. Going back to
+a fixed pixels-per-minute scale with sideways scrolling is a one-constant
+change.
 
 - `Lesson { id, name, kind, group?, room?, day, start, end, createdAt }` — `day`
   is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
@@ -133,7 +135,7 @@ and room.
 - `name` is the bare subject code ("PV170"); `group` is the seminar group that
   follows the slash in "MB142/09". The grid renders them as `name/group`.
 - Absolute positioning, not a CSS grid: `placeDay` converts each lesson to
-  `left`/`width` in pixels from its minutes. Lessons that overlap in time stack
+  `left`/`width` percentages from its minutes. Lessons that overlap in time stack
   within the row's height, so a clash stays visible instead of hiding one block
   behind another.
 - Tap an empty slot to add a lesson prefilled with that hour (`hourAt` snaps the
@@ -142,7 +144,7 @@ and room.
 - A vertical brass **"now" line** marks the current time to the minute in
   today's row, and everything to its left is dimmed (`bg-ink/60` above the
   blocks, `pointer-events-none` so it never eats a tap): whole rows for earlier
-  weekdays, a partial one for today. `nowMarker` / `elapsedWidth` in `layout.ts`
+  weekdays, a partial one for today. `nowMarker` / `elapsedPct` in `layout.ts`
   do the maths; `lib/useNow.ts` re-renders every 30 s.
   - Both go quiet at the **weekend** — the timetable is a weekday template, so
     there is no row to point at, and greying all five days from Saturday morning

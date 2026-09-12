@@ -8,19 +8,26 @@ export const DAY_END = 20 * 60
 export const DAYS: WeekdayIndex[] = [0, 1, 2, 3, 4]
 export const HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, i) => 8 + i)
 
+/** Minutes the grid spans. */
+export const SPAN = DAY_END - DAY_START
+
 /**
  * Rows are days and the horizontal axis is time, matching the routine grid's
- * reading direction. One minute is one pixel, so an hour column is 60px wide and
- * a two-hour lesson is 120px — enough for a subject code and a room.
+ * reading direction. Horizontal offsets are percentages, not pixels, so the
+ * whole 08:00–20:00 window always fits the screen exactly with nothing to
+ * scroll — the cost is that an hour is only as wide as the viewport allows.
  */
-export const PX_PER_MIN = 1
 export const ROW_HEIGHT = 52
 export const HEADER_HEIGHT = 16
+/** Width of the day-label gutter, in pixels. */
+export const GUTTER = 28
 
-export const GRID_WIDTH = (DAY_END - DAY_START) * PX_PER_MIN
 export const GRID_HEIGHT = ROW_HEIGHT * DAYS.length
-/** Width of the sticky day-label gutter. */
-export const GUTTER = 36
+
+/** Where `minutes` sits along the horizontal axis, as a 0..100 percentage. */
+export function pctOfDay(minutes: number): number {
+  return ((minutes - DAY_START) / SPAN) * 100
+}
 
 export const KINDS: LessonKind[] = ['lecture', 'seminar', 'lab']
 
@@ -48,10 +55,10 @@ export const KIND_STYLES: Record<LessonKind, string> = {
   lab: 'border-lab bg-lab-dim',
 }
 
-/** A lesson resolved to offsets inside its day row. */
+/** A lesson resolved to offsets inside its day row, all percentages. */
 export interface Placed {
   lesson: Lesson
-  /** pixels from the start of the day */
+  /** percentage from the start of the day */
   left: number
   width: number
   /** percentages of the row — overlapping lessons stack within its height */
@@ -85,9 +92,8 @@ export function placeDay(lessons: Lesson[]): Placed[] {
       const end = clampToWindow(timeToMinutes(lesson.end))
       placed.push({
         lesson,
-        left: (start - DAY_START) * PX_PER_MIN,
-        // keep a very short lesson wide enough to stay tappable
-        width: Math.max(24, (end - start) * PX_PER_MIN),
+        left: pctOfDay(start),
+        width: ((end - start) / SPAN) * 100,
         top: `${(i / cluster.length) * 100}%`,
         height: `${100 / cluster.length}%`,
       })
@@ -118,7 +124,7 @@ export function placeWeek(lessons: Lesson[]): Record<number, Placed[]> {
 /** Where the "now" line sits, or null when it falls outside the grid. */
 export interface NowMarker {
   day: WeekdayIndex
-  /** pixels from the start of the day */
+  /** percentage from the start of the day */
   left: number
 }
 
@@ -133,32 +139,32 @@ export function nowMarker(now: Date): NowMarker | null {
   const minutes = minutesOfDay(now)
   if (minutes < DAY_START || minutes > DAY_END) return null
 
-  return { day, left: (minutes - DAY_START) * PX_PER_MIN }
+  return { day, left: pctOfDay(minutes) }
 }
 
 /**
- * How much of a day row is already behind us, in pixels: the full width for a
- * day earlier in the week, a part of today, nothing for what's still ahead.
+ * How much of a day row is already behind us, as a 0..100 percentage: all of it
+ * for a day earlier in the week, a part of today, none of what's still ahead.
  *
  * Returns 0 for every day at the weekend. Greying the entire board from Saturday
  * morning would say nothing useful — by then the week reads as the one ahead.
  */
-export function elapsedWidth(day: WeekdayIndex, now: Date): number {
+export function elapsedPct(day: WeekdayIndex, now: Date): number {
   const today = weekdayIndex(now)
   if (today > 4) return 0
-  if (day < today) return GRID_WIDTH
+  if (day < today) return 100
   if (day > today) return 0
 
-  const elapsed = (minutesOfDay(now) - DAY_START) * PX_PER_MIN
-  return Math.min(Math.max(elapsed, 0), GRID_WIDTH)
+  return Math.min(Math.max(pctOfDay(minutesOfDay(now)), 0), 100)
 }
 
 /**
- * Which hour a tap at `x` pixels into a day row landed on, snapped down. Capped
- * an hour short of the window's end so the slot always has room for a lesson.
+ * Which hour a tap landed on, given how far across the row it fell (0..1),
+ * snapped down. Capped an hour short of the window's end so the slot always has
+ * room for a lesson.
  */
-export function hourAt(x: number): number {
-  const minutes = DAY_START + x / PX_PER_MIN
+export function hourAt(ratio: number): number {
+  const minutes = DAY_START + ratio * SPAN
   const hour = Math.floor(minutes / 60) * 60
   return Math.min(clampToWindow(hour), DAY_END - 60)
 }
