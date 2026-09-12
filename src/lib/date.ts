@@ -79,6 +79,28 @@ export function weeksBetween(a: Date, b: Date): number {
   return Math.round(ms / (7 * 24 * 60 * 60 * 1000))
 }
 
+/**
+ * ISO-8601 week number (1..53): weeks run Mon–Sun and week 1 is the one holding
+ * the year's first Thursday, so early January can still belong to week 52/53 of
+ * the year before.
+ */
+export function isoWeek(d: Date): number {
+  // ISO weeks are identified by their Thursday — compare this week's to the
+  // first Thursday of the year that Thursday falls in.
+  const thursday = mondayOf(d)
+  thursday.setDate(thursday.getDate() + 3)
+
+  const firstThursday = mondayOf(new Date(thursday.getFullYear(), 0, 4))
+  firstThursday.setDate(firstThursday.getDate() + 3)
+
+  return 1 + weeksBetween(firstThursday, thursday)
+}
+
+/** Whether a week number is odd or even. */
+export function weekParity(week: number): 'odd' | 'even' {
+  return week % 2 === 0 ? 'even' : 'odd'
+}
+
 /** `dd.mm` */
 export function formatShort(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`

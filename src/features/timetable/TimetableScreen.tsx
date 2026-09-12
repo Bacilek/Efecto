@@ -6,7 +6,9 @@ import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { TimetableGrid } from './TimetableGrid'
 import { LessonEditor, type LessonDraft } from './LessonEditor'
+import { formatShort, weekParity } from '@/lib/date'
 import { DAY_START, KINDS, KIND_LABELS, KIND_NAMES, KIND_STYLES } from './layout'
+import { semesterStart, semesterWeek } from './semester'
 
 interface EditorTarget {
   /** null = creating a new lesson in the `day` / `start` slot */
@@ -17,6 +19,7 @@ interface EditorTarget {
 
 export function TimetableScreen() {
   const [editor, setEditor] = useState<EditorTarget | null>(null)
+  const week = semesterWeek(new Date())
   const lessons = useLiveQuery(() => db.lessons.toArray(), [])
 
   async function saveLesson(draft: LessonDraft) {
@@ -59,6 +62,12 @@ export function TimetableScreen() {
           </button>
         }
       />
+
+      <p className="px-4 pb-2 text-center font-mono text-[11px] text-muted">
+        {week === null
+          ? `Semester starts ${formatShort(semesterStart())}`
+          : `Semester week ${week} · ${weekParity(week)}`}
+      </p>
 
       <TimetableGrid
         lessons={lessons ?? []}

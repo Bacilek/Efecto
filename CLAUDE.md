@@ -46,6 +46,7 @@ src/
   lib/date.ts                  # week math; weekday index 0=Mon..6=Sun (NOT JS getDay)
   lib/cn.ts
   lib/time.ts                  # "HH:MM" <-> minutes since midnight
+  lib/useNow.ts                # clock hook, re-renders on an interval
   db/db.ts                     # Dexie schema v2 (routines, entries, lessons, meta)
   db/seed.ts                   # default routines, inserted once when empty
   features/
@@ -59,7 +60,9 @@ src/
 
 Layout: **rows = 7 days (Mon–Sun) of the selected week, columns = routines.**
 Horizontally scrollable; day column and header row are sticky. Today's row is
-highlighted. `WeekNav` moves between weeks, clamped by `useWeek` to the calendar year
+highlighted. `WeekNav` shows the selected week's **ISO week number and parity** ("Week 37 ·
+odd", `isoWeek` / `weekParity` in `lib/date.ts`) under the date range, and moves
+between weeks, clamped by `useWeek` to the calendar year
 containing today — back to the week holding 1 January, forward to the week
 holding 31 December (`canPrev` / `canNext` grey the arrows out at the edges).
 An edge week may spill into the neighbouring year; the limit is the week, not
@@ -151,6 +154,12 @@ change.
     would say nothing useful.
   - Outside 08:00–20:00 there is no line; the shading still applies (before
     08:00 nothing of today is dimmed, after 20:00 all of it is).
+- Above the grid: the **semester week and its parity** ("Semester week 1 · odd").
+  `features/timetable/semester.ts` counts it from `SEMESTER_START`, a hard-coded
+  Monday that **needs editing once per semester** (currently 2026-09-14). Before
+  that date `semesterWeek` returns null and the line reads "Semester starts
+  14.09" instead. Unlike the routine grid this is always the current week — the
+  timetable has no week navigation.
 - `SEED_TIMETABLE` in `db/seed.ts` holds the user's real timetable, inserted
   once by `seedTimetableIfEmpty()` when the `lessons` table is empty (same
   atomic-transaction + in-flight-promise guard as `seedIfEmpty`, for the same

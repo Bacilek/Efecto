@@ -19,8 +19,8 @@ Capacitor).
 ## Routine tracker
 
 A week is a grid: **7 rows = days (Mon–Sun)**, **columns = routines**
-(horizontally scrollable, sticky day column + header). Tap a cell to cycle its
-state:
+(horizontally scrollable, sticky day column + header). Each week shows its **ISO
+week number and whether it's odd or even**. Tap a cell to cycle its state:
 
 | Taps | State | Colour | Counts as |
 | --- | --- | --- | --- |
@@ -57,6 +57,9 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
 - Lessons that overlap are shown side by side, so a clash is visible.
 - A default timetable is seeded on first run and is fully editable.
+- The header shows the **semester week and its parity**. The semester's first
+  Monday is set in `src/features/timetable/semester.ts` and needs updating each
+  semester.
 - On a weekday, a vertical line marks the current time and everything to its
   left — the part of the week that has already happened — is dimmed. At the
   weekend neither is shown; the timetable reads as the week ahead.

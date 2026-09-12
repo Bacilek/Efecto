@@ -1,9 +1,10 @@
-import { formatShort } from '@/lib/date'
+import { formatShort, isoWeek, weekParity } from '@/lib/date'
 import type { WeekState } from './useWeek'
 
 export function WeekNav({ week }: { week: WeekState }) {
   const from = week.dates[0]
   const to = week.dates[6]
+  const no = isoWeek(week.monday)
   return (
     <div className="flex items-center justify-between px-4 pb-2">
       <button
@@ -20,10 +21,15 @@ export function WeekNav({ week }: { week: WeekState }) {
         type="button"
         onClick={week.reset}
         disabled={week.isCurrent}
-        className="font-mono text-xs text-muted disabled:opacity-60"
+        className="flex flex-col items-center gap-0.5 font-mono text-xs text-muted disabled:opacity-60"
       >
-        {formatShort(from)} – {formatShort(to)}
-        {!week.isCurrent && <span className="ml-2 text-brass">today</span>}
+        <span>
+          {formatShort(from)} – {formatShort(to)}
+          {!week.isCurrent && <span className="ml-2 text-brass">today</span>}
+        </span>
+        <span className="text-[10px] text-dim">
+          Week {no} · {weekParity(no)}
+        </span>
       </button>
 
       <button
