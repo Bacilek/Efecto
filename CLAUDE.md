@@ -73,9 +73,16 @@ Cell state (`features/routines/status.ts` → `resolveCellState`):
    day" behaviour, done at render time, no cron/service worker)
 4. no entry, today or later → **pending**
 
-Tap cycles the **stored** status: `undefined → done → missed → busy → undefined`
-(`nextStatus`). 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
-done" (blue).
+Tap cycles the status (`nextStatus`). 1 tap = done (green), 2 = missed (red),
+3 = busy (blue).
+- Today / future: `undefined → done → missed → busy → undefined` (empty box).
+- **Past**: an unmarked cell already renders red, so the empty step is invisible
+  there and is dropped — the cycle rotates over the *visible* state,
+  `missed → busy → done → missed`. A past cell keeps an entry once marked;
+  cleared and `missed` are identical on screen and in the stats.
+
+`busy` means **excused**, not failed: "couldn't be done for a good reason"
+(ill, travelling). It is neither pass nor fail — see the stats below.
 
 `RoutineEditor` (bottom sheet): emoji, name, 7 weekday toggles, delete (also wipes
 that routine's entries). New routine via the "+ rutina" header
@@ -84,9 +91,11 @@ pointer 1:1 while the other columns slide to their live target slots
 (`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`
 rewrites every `order` and the overlay is held until the persisted order matches.
 
-Completion stats (`features/routines/stats.ts`): `pct = done / applied` where
-"applied" = every non-`off` cell. `busy` / `missed` / past-unmarked count against
-it. Each day row shows its `%` under the date; a bar under `WeekNav` shows the
+Completion stats (`features/routines/stats.ts`): `pct = done / counted` where
+"counted" = every cell that is neither `off` nor `busy`. `missed` and
+past-unmarked count against it; **`busy` drops out of the ratio entirely**, like
+an off-day, so an excused skip can neither raise nor lower the percentage (a day
+with only `busy` cells has `total === 0` → `pct === 0`). Each day row shows its `%` under the date; a bar under `WeekNav` shows the
 week total (`weekCompletion` = sum over the 7 days).
 
 Live data via `dexie-react-hooks` `useLiveQuery` — mutations just write to Dexie

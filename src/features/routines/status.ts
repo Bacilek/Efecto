@@ -5,8 +5,9 @@ import { toISODate, weekdayIndex } from '@/lib/date'
  * What a cell shows for a routine on a given date.
  * - `off`     — routine not scheduled that weekday (gray dash, not tappable)
  * - `pending` — today/future, not marked yet (empty box)
- * - `done` / `busy` / `missed` — explicit mark, OR `missed` derived for a past
- *   day that was left unmarked ("auto red at end of day")
+ * - `done` / `missed` — explicit mark, OR `missed` derived for a past day that
+ *   was left unmarked ("auto red at end of day")
+ * - `busy`    — excused skip: neither pass nor fail, excluded from the stats
  */
 export type CellState = RoutineStatus | 'off' | 'pending'
 
@@ -22,8 +23,8 @@ export function resolveCellState(
 }
 
 /**
- * Tap cycle. 1 tap = done (green), 2 = missed (red), 3 = busy / "couldn't be
- * done" (blue).
+ * Tap cycle. 1 tap = done (green), 2 = missed (red), 3 = busy (blue) — an
+ * excused skip, which `dayCompletion` leaves out of the percentage.
  *
  * Today/future: undefined → done → missed → busy → undefined (empty box).
  *

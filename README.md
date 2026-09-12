@@ -23,15 +23,19 @@ A week is a grid: **7 rows = days (Mon–Sun)**, **columns = routines**
 (horizontally scrollable, sticky day column + header). Tap a cell to cycle its
 state:
 
-| Taps | State | Colour |
-| --- | --- | --- |
-| 1 | splněno (done) | green |
-| 2 | nestihnuto (busy / couldn't) | blue |
-| 3 | nesplněno (missed) | red |
-| 4 | zpět na čeká (pending) | — |
+| Taps | State | Colour | Counts as |
+| --- | --- | --- | --- |
+| 1 | splněno (done) | green | pass |
+| 2 | nesplněno (missed) | red | fail |
+| 3 | omluveno (busy) | blue | neither — excluded from the % |
+| 4 | zpět na čeká (pending) | — | not yet counted |
 
+- **Blue = excused.** A routine you had a good reason to skip (ill, travelling)
+  is neither a pass nor a fail: it leaves the day's ratio completely, exactly
+  like a weekday the routine doesn't apply to.
 - A past day left untouched shows **red** automatically (derived at render, no
-  background job).
+  background job). On past days the cycle skips the empty step — it looks the
+  same as red — and rotates red → blue → green.
 - A routine that doesn't apply to a weekday shows a grey `–` and isn't tappable
   (set per-routine in the editor — e.g. a gym split on Mon/Tue/Thu/Fri).
 - Tap a column header to edit the routine (name, time, active weekdays, delete).

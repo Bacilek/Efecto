@@ -46,6 +46,6 @@ export function Cell({ state, onTap }: { state: CellState; onTap: () => void }) 
 const LABEL: Record<Exclude<CellState, 'off'>, string> = {
   pending: 'nezaškrtnuto',
   done: 'splněno',
-  busy: 'nestihnuto',
+  busy: 'omluveno',
   missed: 'nesplněno',
 }

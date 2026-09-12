@@ -6,7 +6,7 @@ import { resolveCellState } from './status'
 export interface Completion {
   /** cells resolved to `done` */
   done: number
-  /** routines that applied (everything except off-days) */
+  /** routines that counted (everything except off-days and excused `busy`) */
   total: number
   /** `done / total` as a rounded 0..100 percentage; 0 when nothing applied */
   pct: number
@@ -18,7 +18,9 @@ function toPct(done: number, total: number): number {
 
 /**
  * Completion for a single day: how many routines active that weekday resolved to
- * `done`. `busy` and `missed` (and past unmarked) count against the total.
+ * `done`. `missed` (and past unmarked) counts against the total; `busy` is an
+ * excused skip and drops out of the ratio entirely, like an off-day — it can
+ * neither raise nor lower the percentage.
  */
 export function dayCompletion(
   routines: Routine[],
@@ -31,7 +33,8 @@ export function dayCompletion(
   let total = 0
   for (const r of routines) {
     const state = resolveCellState(r, date, entries.get(entryId(r.id, dISO)), todayISO)
-    if (state === 'off') continue
+    // `off` never applied; `busy` is excused after the fact. Both leave the ratio.
+    if (state === 'off' || state === 'busy') continue
     total++
     if (state === 'done') done++
   }
