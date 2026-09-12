@@ -50,7 +50,10 @@ export function TimetableGrid({
 
   return (
     <div className="flex px-4 pb-2">
-      <div className="shrink-0" style={{ width: GUTTER, paddingTop: HEADER_HEIGHT }}>
+      <div
+        className="shrink-0"
+        style={{ width: GUTTER, paddingTop: HEADER_HEIGHT, paddingRight: 6 }}
+      >
         {DAYS.map((d) => (
           <div
             key={d}
@@ -70,7 +73,11 @@ export function TimetableGrid({
           {HOURS.slice(0, -1).map((h) => (
             <div
               key={h}
-              className="absolute text-center font-mono text-xs text-muted"
+              className={cn(
+                'absolute bottom-0 top-0 text-center font-mono text-xs text-muted',
+                // the tick makes each label visibly sit inside its own hour column
+                h > 8 && 'border-l border-line-soft',
+              )}
               style={{ left: `${pctOfDay(h * 60)}%`, width: `${HOUR_PCT}%` }}
             >
               {h}
