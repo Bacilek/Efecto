@@ -9,6 +9,7 @@ import {
   type WeekParity,
 } from '@/lib/date'
 import { minutesToTime, timeToMinutes } from '@/lib/time'
+import { CameraIcon } from '@/ui/CameraIcon'
 import { happensOn } from './occurrence'
 import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
 
@@ -22,6 +23,8 @@ export interface LessonDraft {
   end: string
   /** null = every week */
   weeks: WeekParity | null
+  /** recorded → no need to be there in person */
+  recorded: boolean
 }
 
 /** "Every week" plus the two parities, in the order the picker shows them. */
@@ -59,6 +62,7 @@ export function LessonEditor({
   const [kind, setKind] = useState<LessonKind>('lecture')
   const [group, setGroup] = useState('')
   const [room, setRoom] = useState('')
+  const [recorded, setRecorded] = useState(false)
   const [day, setDay] = useState<WeekdayIndex>(0)
   const [start, setStart] = useState('08:00')
   const [end, setEnd] = useState('09:00')
@@ -69,6 +73,7 @@ export function LessonEditor({
     setKind(lesson?.kind ?? 'lecture')
     setGroup(lesson?.group ?? '')
     setRoom(lesson?.room ?? '')
+    setRecorded(lesson?.recorded ?? false)
     setDay(lesson?.day ?? defaults.day)
     setWeeks(lesson?.weeks ?? null)
     setStart(lesson?.start ?? defaults.start)
@@ -92,6 +97,7 @@ export function LessonEditor({
       start,
       end,
       weeks,
+      recorded,
     })
   }
 
@@ -193,6 +199,19 @@ export function LessonEditor({
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setRecorded((r) => !r)}
+          aria-pressed={recorded}
+          className={cn(
+            'mb-3 flex h-9 w-full items-center justify-center gap-2 rounded-md border text-xs transition-colors',
+            recorded ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-dim',
+          )}
+        >
+          <CameraIcon size={12} />
+          Recorded — no need to go
+        </button>
 
         <div className="mb-1 flex gap-2">
           <div className="flex-1">

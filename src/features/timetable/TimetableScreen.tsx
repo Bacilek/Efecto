@@ -38,6 +38,7 @@ export function TimetableScreen() {
       start: draft.start,
       end: draft.end,
       weeks: draft.weeks ?? undefined,
+      recorded: draft.recorded || undefined,
     }
     if (target) {
       await db.lessons.update(target.id, fields)

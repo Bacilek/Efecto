@@ -10,6 +10,7 @@ import {
   type WeekParity,
 } from '@/lib/date'
 import { useNow } from '@/lib/useNow'
+import { CameraIcon } from '@/ui/CameraIcon'
 import {
   DAYS,
   GRID_HEIGHT,
@@ -155,6 +156,14 @@ export function TimetableGrid({
                       <span className={happening ? 'text-muted' : undefined}>/{lesson.group}</span>
                     )}
                   </span>
+                  {lesson.recorded && (
+                    <CameraIcon
+                      className={cn(
+                        'pointer-events-none absolute right-px top-px',
+                        happening ? 'text-parchment' : 'text-dim',
+                      )}
+                    />
+                  )}
                   {lesson.room && (
                     <span
                       className={cn(

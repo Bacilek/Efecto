@@ -75,6 +75,11 @@ export interface Lesson {
    * `SemesterNav` displays). Unset = every week.
    */
   weeks?: WeekParity
+  /**
+   * The lesson is recorded, so it doesn't have to be attended in person — the
+   * block gets a camera in its top-right corner. Matters because of the commute.
+   */
+  recorded?: boolean
   createdAt: number
 }
 

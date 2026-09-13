@@ -158,8 +158,13 @@ Labels are centred on what they label: an hour number sits over its own column
 centred in the `GUTTER`. Today's row is tinted `bg-today` with its label in
 brass, matching the routine grid — but only in the current week (`showNow`).
 
-- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, createdAt }`
+- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
+- `recorded` marks a lesson that is filmed, so it doesn't have to be attended in
+  person — it matters because of the commute. The block gets a small **camera**
+  in its top-right corner (`ui/CameraIcon.tsx`, dimmed on a ghost) and the
+  editor has a "Recorded — no need to go" toggle. Nothing else changes: the
+  lesson still occupies its slot.
 - `weeks` restricts a lesson to odd or even **semester** weeks (the parity
   `SemesterNav` shows), set from the editor's "Repeats" row. A mismatched week
   renders the lesson as a ghost, like any other exception.
@@ -301,7 +306,8 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
 - Timetable: colour comes from `kind` only (no per-subject colours) and there is
-  no teacher field. Not linked to the calendar or to routines.
+  no teacher field. Which lessons are `recorded` is set by hand in the editor —
+  the seed marks none. Not linked to the calendar or to routines.
 - Recurrence stops at weekday sets, weekly counts and week parity. Nothing
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
