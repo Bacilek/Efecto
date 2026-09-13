@@ -158,13 +158,30 @@ Labels are centred on what they label: an hour number sits over its own column
 centred in the `GUTTER`. Today's row is tinted `bg-today` with its label in
 brass, matching the routine grid — but only in the current week (`showNow`).
 
-- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, createdAt }`
+- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
 - `recorded` marks a lesson that is filmed, so it doesn't have to be attended in
   person — it matters because of the commute. The block gets a small **camera**
   in its top-right corner (`ui/CameraIcon.tsx`, dimmed on a ghost) and the
   editor has a "Recorded — no need to go" toggle. Nothing else changes: the
   lesson still occupies its slot.
+- `absenceLimit` is how many **excused absences a semester** the subject allows
+  (seminars and labs usually allow a few); `absentDates` are the dates actually
+  missed. `features/timetable/absence.ts` turns the two into `{ limit, used,
+  left }`, counting only dates **inside the current semester** — so moving
+  `SEMESTER_START` / `SEMESTER_END` resets the allowance by itself, with no
+  clearing of last term's dates.
+  - An absence is not a cancellation: the lesson still happened, so this is a
+    separate list from `skipDates` and doesn't touch `happensOn`.
+  - The block shows **one dot per allowed absence** along its bottom edge, the
+    spent ones filled red (`AbsenceDots`). Dots rather than a "1/3" label
+    because an hour column is ~27px on a phone and the room already owns the
+    text — and they read peripherally, without counting. A full red row means
+    none are left, i.e. that one has to be attended. Above six the dots would
+    not fit and it falls back to "2 left".
+  - The editor sets the limit with a stepper (0 = not tracked) and records the
+    absence for the tapped date with "I wasn't there", next to the existing
+    cancel-this-one gesture — it writes immediately and closes, like that one.
 - `weeks` restricts a lesson to odd or even **semester** weeks (the parity
   `SemesterNav` shows), set from the editor's "Repeats" row. A mismatched week
   renders the lesson as a ghost, like any other exception.
@@ -306,8 +323,9 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
 - Timetable: colour comes from `kind` only (no per-subject colours) and there is
-  no teacher field. Which lessons are `recorded` is set by hand in the editor —
-  the seed marks none. Not linked to the calendar or to routines.
+  no teacher field. `recorded` and `absenceLimit` are set by hand in the editor
+  — the seed sets neither, and nothing warns when the allowance runs out beyond
+  the dots turning red. Not linked to the calendar or to routines.
 - Recurrence stops at weekday sets, weekly counts and week parity. Nothing
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
@@ -338,7 +356,9 @@ its tasks and the back arrow returns, "+" adds into the open folder,
 ticking sinks a task to the bottom struck through, edits and deletes **survive
 reload**, and deleting a folder takes its todos and drops back to the tiles.
 
-Timetable — all of 08:00–20:00 fits without scrolling, blocks are coloured by
+Timetable — a recorded lesson carries a camera in its top-right corner, an
+`absenceLimit` one a row of dots that fill red as absences are recorded, and
+all of 08:00–20:00 fits without scrolling, blocks are coloured by
 kind with no hour line crossing a two-hour lesson, the "now" line sits at the
 right minute on a weekday with everything left of it dimmed, week paging stops
 at both ends of the semester, and an exception renders as a struck-through ghost

@@ -11,6 +11,7 @@ import {
 } from '@/lib/date'
 import { useNow } from '@/lib/useNow'
 import { CameraIcon } from '@/ui/CameraIcon'
+import { absenceState } from './absence'
 import {
   DAYS,
   GRID_HEIGHT,
@@ -174,6 +175,7 @@ export function TimetableGrid({
                       {lesson.room}
                     </span>
                   )}
+                  <AbsenceDots lesson={lesson} faded={!happening} />
                 </button>
               ))}
 
@@ -184,6 +186,56 @@ export function TimetableGrid({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * How many excused absences are left, along the block's bottom edge: one dot
+ * per allowed absence, the spent ones filled red. Dots beat a "1/3" label here
+ * — an hour column is ~27px on a phone, and the room already owns the text —
+ * and they read peripherally, without counting. A full row of red means none
+ * are left, so that one has to be attended.
+ *
+ * Past six the dots would not fit, so it falls back to "2 left".
+ */
+function AbsenceDots({ lesson, faded }: { lesson: Lesson; faded: boolean }) {
+  const state = absenceState(lesson)
+  if (!state) return null
+
+  const { limit, used, left } = state
+  const spent = left === 0
+
+  if (limit > 6) {
+    return (
+      <span
+        className={cn(
+          'pointer-events-none absolute inset-x-0 bottom-0 truncate text-center font-mono text-[9px] leading-tight',
+          faded ? 'text-dim' : spent ? 'text-missed' : 'text-muted',
+        )}
+      >
+        {left} left
+      </span>
+    )
+  }
+
+  return (
+    <span className="pointer-events-none absolute inset-x-0 bottom-[2px] flex justify-center gap-[2px]">
+      {Array.from({ length: limit }, (_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'h-[3px] w-[3px] rounded-full border',
+            i < used
+              ? faded
+                ? 'border-dim bg-dim'
+                : 'border-missed bg-missed'
+              : faded
+                ? 'border-dim'
+                : 'border-muted',
+          )}
+        />
+      ))}
+    </span>
   )
 }
 

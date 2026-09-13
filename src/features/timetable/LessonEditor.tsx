@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Lesson, LessonKind } from '@/db/db'
 import { cn } from '@/lib/cn'
 import {
@@ -11,6 +11,7 @@ import {
 import { minutesToTime, timeToMinutes } from '@/lib/time'
 import { CameraIcon } from '@/ui/CameraIcon'
 import { happensOn } from './occurrence'
+import { absenceState, wasAbsent } from './absence'
 import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
 
 export interface LessonDraft {
@@ -25,6 +26,8 @@ export interface LessonDraft {
   weeks: WeekParity | null
   /** recorded → no need to be there in person */
   recorded: boolean
+  /** excused absences the subject allows per semester; 0 = not tracked */
+  absenceLimit: number
 }
 
 /** "Every week" plus the two parities, in the order the picker shows them. */
@@ -40,6 +43,7 @@ export function LessonEditor({
   occurrenceDate,
   occurrenceParity,
   onSave,
+  onToggleAbsence,
   onToggleOccurrence,
   onDelete,
   onClose,
@@ -53,6 +57,8 @@ export function LessonEditor({
   /** parity of the week that date is in, for resolving odd/even-only lessons */
   occurrenceParity: WeekParity | null
   onSave: (draft: LessonDraft) => void
+  /** record or take back an absence on `occurrenceDate` */
+  onToggleAbsence: () => void
   /** cancel or restore just `occurrenceDate` */
   onToggleOccurrence: () => void
   onDelete: () => void
@@ -63,6 +69,7 @@ export function LessonEditor({
   const [group, setGroup] = useState('')
   const [room, setRoom] = useState('')
   const [recorded, setRecorded] = useState(false)
+  const [absenceLimit, setAbsenceLimit] = useState(0)
   const [day, setDay] = useState<WeekdayIndex>(0)
   const [start, setStart] = useState('08:00')
   const [end, setEnd] = useState('09:00')
@@ -74,6 +81,7 @@ export function LessonEditor({
     setGroup(lesson?.group ?? '')
     setRoom(lesson?.room ?? '')
     setRecorded(lesson?.recorded ?? false)
+    setAbsenceLimit(lesson?.absenceLimit ?? 0)
     setDay(lesson?.day ?? defaults.day)
     setWeeks(lesson?.weeks ?? null)
     setStart(lesson?.start ?? defaults.start)
@@ -98,6 +106,7 @@ export function LessonEditor({
       end,
       weeks,
       recorded,
+      absenceLimit,
     })
   }
 
@@ -213,6 +222,23 @@ export function LessonEditor({
           Recorded — no need to go
         </button>
 
+        <label className="mb-1.5 block text-xs text-muted">Excused absences a semester</label>
+        <div className="mb-3 flex items-center gap-1.5">
+          <Stepper
+            label="One fewer"
+            onClick={() => setAbsenceLimit((n) => Math.max(0, n - 1))}
+            disabled={absenceLimit === 0}
+          >
+            −
+          </Stepper>
+          <span className="flex-1 text-center font-mono text-sm text-parchment">
+            {absenceLimit === 0 ? <span className="text-dim">not tracked</span> : absenceLimit}
+          </span>
+          <Stepper label="One more" onClick={() => setAbsenceLimit((n) => n + 1)}>
+            +
+          </Stepper>
+        </div>
+
         <div className="mb-1 flex gap-2">
           <div className="flex-1">
             <label className="mb-1 block text-xs text-muted">From</label>
@@ -249,6 +275,7 @@ export function LessonEditor({
             dateISO={occurrenceDate}
             parity={occurrenceParity}
             onToggle={onToggleOccurrence}
+            onToggleAbsence={onToggleAbsence}
           />
         )}
 
@@ -288,13 +315,17 @@ function OccurrenceRow({
   dateISO,
   parity,
   onToggle,
+  onToggleAbsence,
 }: {
   lesson: Lesson
   dateISO: string
   parity: WeekParity | null
   onToggle: () => void
+  onToggleAbsence: () => void
 }) {
   const happens = happensOn(lesson, dateISO, parity)
+  const absences = absenceState(lesson)
+  const absent = wasAbsent(lesson, dateISO)
   const skipDates = lesson.skipDates ?? []
   const list = (dates: string[]) => dates.map((d) => formatShort(fromISODate(d))).join(', ')
 
@@ -329,6 +360,55 @@ function OccurrenceRow({
           {happens ? 'Cancel this one' : 'Restore this one'}
         </button>
       </div>
+
+      {absences && (
+        <div className="mt-2 flex items-center justify-between gap-3 border-t border-line-soft pt-2">
+          <p className="min-w-0 text-[11px] text-muted">
+            <span className={absences.left === 0 ? 'text-missed' : 'text-parchment'}>
+              {absences.left} of {absences.limit} left
+            </span>
+            {absent && ' · missed this one'}
+          </p>
+          <button
+            type="button"
+            onClick={onToggleAbsence}
+            disabled={!happens}
+            className={cn(
+              'shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors disabled:opacity-40',
+              absent
+                ? 'border-line text-muted hover:border-muted'
+                : 'border-missed-dim text-missed hover:border-missed',
+            )}
+          >
+            {absent ? 'I was there' : "I wasn't there"}
+          </button>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** One side of the absence-allowance stepper. */
+function Stepper({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="h-9 w-12 rounded-md border border-line text-sm text-muted transition-colors hover:border-muted disabled:opacity-40"
+    >
+      {children}
+    </button>
   )
 }

@@ -10,6 +10,7 @@ import { formatShort } from '@/lib/date'
 import { DAY_START, KINDS, KIND_LABELS, KIND_NAMES, KIND_STYLES } from './layout'
 import { SemesterNav } from './SemesterNav'
 import { toggledOccurrence } from './occurrence'
+import { toggledAbsence } from './absence'
 import { semesterEnd, semesterStart, semesterWeekCount } from './semester'
 import { useSemesterWeek } from './useSemesterWeek'
 
@@ -39,6 +40,7 @@ export function TimetableScreen() {
       end: draft.end,
       weeks: draft.weeks ?? undefined,
       recorded: draft.recorded || undefined,
+      absenceLimit: draft.absenceLimit || undefined,
     }
     if (target) {
       await db.lessons.update(target.id, fields)
@@ -54,6 +56,15 @@ export function TimetableScreen() {
     const date = editor?.date
     if (!target || !date) return
     await db.lessons.update(target.id, toggledOccurrence(target, date))
+    setEditor(null)
+  }
+
+  /** Record (or take back) an absence on the tapped date, like cancelling one. */
+  async function toggleAbsence() {
+    const target = editor?.lesson
+    const date = editor?.date
+    if (!target || !date) return
+    await db.lessons.update(target.id, toggledAbsence(target, date))
     setEditor(null)
   }
 
@@ -113,6 +124,13 @@ export function TimetableScreen() {
             {KIND_LABELS[k]} · {KIND_NAMES[k]}
           </span>
         ))}
+        <span className="flex items-center gap-1.5">
+          <span className="flex gap-[2px]">
+            <span className="h-[5px] w-[5px] rounded-full border border-missed bg-missed" />
+            <span className="h-[5px] w-[5px] rounded-full border border-muted" />
+          </span>
+          absences used / left
+        </span>
       </div>
 
       <p className="px-4 pb-8 pt-1 text-center text-[11px] text-dim">
@@ -131,6 +149,7 @@ export function TimetableScreen() {
           occurrenceDate={editor.date}
           occurrenceParity={weekParity(week.week)}
           onSave={(d) => void saveLesson(d)}
+          onToggleAbsence={() => void toggleAbsence()}
           onToggleOccurrence={() => void toggleOccurrence()}
           onDelete={() => void deleteLesson()}
           onClose={() => setEditor(null)}

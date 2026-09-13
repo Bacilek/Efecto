@@ -80,6 +80,17 @@ export interface Lesson {
    * block gets a camera in its top-right corner. Matters because of the commute.
    */
   recorded?: boolean
+  /**
+   * How many excused absences the subject allows **per semester** (seminars and
+   * labs usually allow a few). Unset = attendance isn't tracked.
+   */
+  absenceLimit?: number
+  /**
+   * Dates (`YYYY-MM-DD`) the lesson was missed. The lesson still happened —
+   * unlike `skipDates`, which cancels it. Dates outside the current semester
+   * are ignored, so the allowance resets with the semester bounds.
+   */
+  absentDates?: string[]
   createdAt: number
 }
 
