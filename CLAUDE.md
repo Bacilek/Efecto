@@ -306,6 +306,15 @@ Adding:
   gesture, next to the editor's "Plan" row;
 - the screen header's **"+ folder"** creates a category (All tab only).
 
+Drag a folder tile to reorder the overview grid — same spirit as the routine
+column drag (`features/todos/TodosScreen.tsx`'s `FolderTiles`): the grabbed
+tile follows the pointer 1:1 while the rest slide live into their target slot,
+held until the persisted `order` catches up. It is a wrapping 2D grid rather
+than a single row, so the slot math tracks row *and* column, and the column
+count is measured from the live layout each drag (it follows the viewport, not
+a breakpoint). The "Unsorted" tile, when present, has no `order` of its own and
+always trails the real folders — it never takes part in the drag.
+
 `TodoEditor` (bottom sheet, mirroring `RoutineEditor`): task, note, a folder
 picker of pills ("Unsorted" + every folder), and delete. `FolderEditor` is the
 same shape for emoji + name; deleting a folder deletes its todos with it, and
@@ -329,10 +338,10 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
 - Recurrence stops at weekday sets, weekly counts and week parity. Nothing
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
-- Todos: no due dates (by design, for now), no reordering by drag, no archive —
-  delete is hard-delete. Folders can't be reordered either, and neither the open
-  folder nor the sub-tab is remembered across a tab switch. Nothing repeats: a
-  task planned for today is a one-off.
+- Todos: no due dates (by design, for now), no archive — delete is hard-delete.
+  Tasks within a folder can't be reordered by drag (only folders can); neither
+  the open folder nor the sub-tab is remembered across a tab switch. Nothing
+  repeats: a task planned for today is a one-off.
 - Calendar is a stub.
 - No sync, no auth, no notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
@@ -354,7 +363,8 @@ removes them and yesterday's unfinished ones stay as "carried over"; on All the
 folder tiles wrap instead of overflowing sideways at 360px, tapping one opens
 its tasks and the back arrow returns, "+" adds into the open folder,
 ticking sinks a task to the bottom struck through, edits and deletes **survive
-reload**, and deleting a folder takes its todos and drops back to the tiles.
+reload**, deleting a folder takes its todos and drops back to the tiles, and
+dragging a tile reorders the grid live and **survives reload**.
 
 Timetable — a recorded lesson carries a camera in its top-right corner, an
 `absenceLimit` one a row of dots that fill red as absences are recorded, and

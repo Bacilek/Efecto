@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, type Todo, type TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
@@ -140,6 +140,12 @@ export function TodosScreen() {
     setFolderEditor(null)
   }
 
+  async function reorderFolders(ids: string[]) {
+    await db.transaction('rw', db.todoFolders, () =>
+      Promise.all(ids.map((id, i) => db.todoFolders.update(id, { order: i }))),
+    )
+  }
+
   async function deleteFolder() {
     const target = folderEditor?.folder
     if (!target) return
@@ -211,7 +217,11 @@ export function TodosScreen() {
               hint={'Make one with "+ folder", then fill it with tasks.'}
             />
           ) : (
-            <FolderTiles sections={sections} onOpen={setOpenKey} />
+            <FolderTiles
+              sections={sections}
+              onOpen={setOpenKey}
+              onReorder={(ids) => void reorderFolders(ids)}
+            />
           )}
         </>
       )}
@@ -316,30 +326,245 @@ function TabButton({
   )
 }
 
+/** px — matches the grid's `gap-3` below; kept in sync by hand. */
+const TILE_GAP = 12
+
+type FolderDrag = { key: string; dx: number; dy: number; from: number; to: number }
+
+function arrayMove<T>(arr: T[], from: number, to: number): T[] {
+  const copy = arr.slice()
+  copy.splice(to, 0, copy.splice(from, 1)[0])
+  return copy
+}
+
 /**
  * The All tab's overview: tiles flow side by side and wrap onto the next line
  * when they no longer fit, so the column count follows the viewport width
  * rather than a breakpoint — two on a phone, more on a wide screen.
+ *
+ * Real folders can be dragged to reorder, same spirit as the routine columns
+ * (`RoutineGrid`): the grabbed tile follows the pointer 1:1 while the rest
+ * slide live into their target slot (`visualFolders` = `arrayMove`), and the
+ * overlay is held after drop until the persisted order catches up. It is a 2D
+ * wrapping grid rather than a single row, so the slot math tracks row *and*
+ * column — `cols` is measured from the live layout (not assumed) since it
+ * follows the viewport, not a breakpoint. The "Unsorted" tile, when present,
+ * has no `order` of its own and always trails the real folders, so it never
+ * takes part in the drag.
  */
-function FolderTiles({ sections, onOpen }: { sections: Section[]; onOpen: (key: string) => void }) {
+function FolderTiles({
+  sections,
+  onOpen,
+  onReorder,
+}: {
+  sections: Section[]
+  onOpen: (key: string) => void
+  /** new folder id order after a drag */
+  onReorder: (ids: string[]) => void
+}) {
+  const folderSections = useMemo(() => sections.filter((s) => s.folder), [sections])
+  const tail = useMemo(() => sections.filter((s) => !s.folder), [sections])
+
+  const grabRef = useRef<{
+    key: string
+    startX: number
+    startY: number
+    from: number
+    cellW: number
+    cellH: number
+    cols: number
+    moved: boolean
+  } | null>(null)
+  const dragStateRef = useRef<FolderDrag | null>(null)
+  const settleRef = useRef<string | null>(null)
+  const didDragRef = useRef(false)
+  const [drag, setDragRaw] = useState<FolderDrag | null>(null)
+
+  function setDrag(next: FolderDrag | null) {
+    dragStateRef.current = next
+    setDragRaw(next)
+  }
+
+  const visualFolders = useMemo(
+    () =>
+      drag && drag.from !== drag.to ? arrayMove(folderSections, drag.from, drag.to) : folderSections,
+    [folderSections, drag],
+  )
+
+  // Once the persisted order matches the drop target, drop the drag overlay.
+  useEffect(() => {
+    if (settleRef.current && folderSections.map((s) => s.key).join('|') === settleRef.current) {
+      settleRef.current = null
+      grabRef.current = null
+      dragStateRef.current = null
+      setDragRaw(null)
+    }
+  }, [folderSections])
+
+  function onPointerDown(e: React.PointerEvent<HTMLButtonElement>, key: string) {
+    if (folderSections.length < 2) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    // How many tiles share the top row right now — the column count follows
+    // the viewport, not a breakpoint, so it can't be assumed, only measured.
+    const grid = e.currentTarget.closest('[data-folder-grid]')
+    const tiles = grid ? Array.from(grid.querySelectorAll<HTMLElement>('[data-folder-tile]')) : []
+    const firstTop = tiles[0]?.getBoundingClientRect().top ?? 0
+    const cols =
+      tiles.filter((t) => Math.abs(t.getBoundingClientRect().top - firstTop) < 1).length || 1
+    grabRef.current = {
+      key,
+      startX: e.clientX,
+      startY: e.clientY,
+      from: folderSections.findIndex((s) => s.key === key),
+      cellW: rect.width || 144,
+      cellH: rect.height || 144,
+      cols,
+      moved: false,
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const g = grabRef.current
+    if (!g) return
+    const dx = e.clientX - g.startX
+    const dy = e.clientY - g.startY
+    if (!g.moved && Math.hypot(dx, dy) < 6) return
+    g.moved = true
+    didDragRef.current = true
+    e.preventDefault()
+    const colFrom = g.from % g.cols
+    const rowFrom = Math.floor(g.from / g.cols)
+    const col = Math.max(0, Math.min(g.cols - 1, colFrom + Math.round(dx / (g.cellW + TILE_GAP))))
+    const row = Math.max(0, rowFrom + Math.round(dy / (g.cellH + TILE_GAP)))
+    const to = Math.max(0, Math.min(folderSections.length - 1, row * g.cols + col))
+    setDrag({ key: g.key, dx, dy, from: g.from, to })
+  }
+
+  function endDrag() {
+    const g = grabRef.current
+    const cur = dragStateRef.current
+    if (!g?.moved || !cur || cur.to === cur.from) {
+      grabRef.current = null
+      setDrag(null)
+      return
+    }
+    const ids = arrayMove(folderSections, cur.from, cur.to).map((s) => s.key)
+    settleRef.current = ids.join('|')
+    // hold the reordered view; the grabbed tile rests in its new slot until
+    // the persisted order catches up, so `grabRef` stays alive for its
+    // geometry (`cols`/`cellW`/`cellH`) rather than being cleared here.
+    const colFrom = cur.from % g.cols
+    const rowFrom = Math.floor(cur.from / g.cols)
+    const colTo = cur.to % g.cols
+    const rowTo = Math.floor(cur.to / g.cols)
+    setDrag({
+      ...cur,
+      dx: (colTo - colFrom) * (g.cellW + TILE_GAP),
+      dy: (rowTo - rowFrom) * (g.cellH + TILE_GAP),
+    })
+    onReorder(ids)
+    // safety net if the persisted order never comes back as expected
+    window.setTimeout(() => {
+      if (settleRef.current === ids.join('|')) {
+        settleRef.current = null
+        grabRef.current = null
+        setDrag(null)
+      }
+    }, 400)
+  }
+
+  const cols = grabRef.current?.cols
+
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 px-4 pb-28">
-      {sections.map((s) => (
+    <div
+      data-folder-grid
+      className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 px-4 pb-28"
+    >
+      {visualFolders.map((s) => {
+        let style: React.CSSProperties | undefined
+        if (drag?.key === s.key && cols) {
+          const colFrom = drag.from % cols
+          const rowFrom = Math.floor(drag.from / cols)
+          const colTo = drag.to % cols
+          const rowTo = Math.floor(drag.to / cols)
+          const cellW = grabRef.current!.cellW
+          const cellH = grabRef.current!.cellH
+          const shiftX = (colTo - colFrom) * (cellW + TILE_GAP)
+          const shiftY = (rowTo - rowFrom) * (cellH + TILE_GAP)
+          style = {
+            transform: `translate(${drag.dx - shiftX}px, ${drag.dy - shiftY}px)`,
+            position: 'relative',
+            zIndex: 40,
+          }
+        }
+        return (
+          <FolderTile
+            key={s.key}
+            section={s}
+            style={style}
+            draggable
+            onOpen={() => onOpen(s.key)}
+            onPointerDown={(e) => onPointerDown(e, s.key)}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onClick={() => {
+              if (didDragRef.current) {
+                didDragRef.current = false
+                return
+              }
+              onOpen(s.key)
+            }}
+          />
+        )
+      })}
+      {tail.map((s) => (
         <FolderTile key={s.key} section={s} onOpen={() => onOpen(s.key)} />
       ))}
     </div>
   )
 }
 
-function FolderTile({ section, onOpen }: { section: Section; onOpen: () => void }) {
+function FolderTile({
+  section,
+  onOpen,
+  style,
+  draggable,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onClick,
+}: {
+  section: Section
+  onOpen: () => void
+  style?: React.CSSProperties
+  /** wired only for real folders — the "Unsorted" tile doesn't reorder */
+  draggable?: boolean
+  onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void
+  onPointerMove?: (e: React.PointerEvent) => void
+  onPointerUp?: (e: React.PointerEvent) => void
+  onPointerCancel?: (e: React.PointerEvent) => void
+  onClick?: () => void
+}) {
   const { folder, todos } = section
   const open = todos.filter((t) => !t.done).length
 
   return (
     <button
       type="button"
-      onClick={onOpen}
-      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-line bg-panel p-2 text-center transition-colors hover:border-muted"
+      data-folder-tile
+      style={style}
+      onClick={onClick ?? onOpen}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      className={cn(
+        'flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border border-line bg-panel p-2 text-center transition-colors hover:border-muted',
+        draggable && 'touch-none select-none',
+      )}
     >
       <span className="text-3xl leading-none">{folder?.emoji ?? '📥'}</span>
       <span className="w-full truncate text-sm text-parchment">{folderLabel(folder)}</span>
