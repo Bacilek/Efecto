@@ -120,7 +120,15 @@ render as rather than assuming.
 
 `RoutineEditor` (bottom sheet): emoji, name, a **Schedule** picker ("Set days" →
 7 weekday toggles, or "Times a week" → 1–7×), a **Repeats** row (every week /
-odd / even), and delete (also wipes that routine's entries). New routine via the "+ routine" header button. Drag a column header sideways to reorder: the grabbed icon follows the
+odd / even), and delete (also wipes that routine's entries). New routine via
+the "+ routine" header button. The emoji field still takes direct typing/paste,
+but focusing it also opens `EmojiPickerPanel` (`ui/EmojiPicker.tsx`, shared with
+`FolderEditor`) inline below the row — search by English name against
+`ui/emojiData.ts`'s ~1900-entry `[emoji, name]` list, dynamically imported so
+browsing emoji only costs a fetch the first time someone opens the panel. That
+data file is generated, not hand-written — its header says how to regenerate
+it from a newer Unicode release; the `unicode-emoji-json` package that made it
+was never added as a dependency. Drag a column header sideways to reorder: the grabbed icon follows the
 pointer 1:1 while the other columns slide to their live target slots
 (`visualRoutines` = `arrayMove` by `round(dx / colWidth)`); on drop `onReorder`
 rewrites every `order` and the overlay is held until the persisted order matches.
@@ -331,8 +339,9 @@ always trails the real folders — it never takes part in the drag.
 
 `TodoEditor` (bottom sheet, mirroring `RoutineEditor`): task, note, a folder
 picker of pills ("Unsorted" + every folder), and delete. `FolderEditor` is the
-same shape for emoji + name; deleting a folder deletes its todos with it, and
-the confirm names the count.
+same shape for emoji + name, emoji field and search-by-name picker included
+(see `EmojiPickerPanel` under Routine tracker above); deleting a folder
+deletes its todos with it, and the confirm names the count.
 
 Tap the checkbox to tick, tap the text to edit, tap "Edit" in an open folder to
 rename or delete it. Live data via `useLiveQuery`, same as the routine grid.
@@ -370,7 +379,9 @@ npm run dev   # then use a mobile viewport in devtools
 Routines — grid renders 7 day rows + routine columns, today highlighted,
 past-unmarked cells red, off-days grey `–`, tap cycles colours and **survives
 reload**, week nav keeps per-week marks and is clamped to the year, editor
-add/edit/delete works, excused cells leave the `%` alone.
+add/edit/delete works, excused cells leave the `%` alone, and focusing the
+emoji field opens the search panel — typing "book" finds 📚, tapping it fills
+the field and closes the panel.
 
 Todos — Today lists exactly the starred tasks with their folder, ★ adds and
 removes them and yesterday's unfinished ones stay as "carried over"; on All the

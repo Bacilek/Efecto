@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { TodoFolder } from '@/db/db'
+import { EmojiPickerPanel } from '@/ui/EmojiPicker'
 
 export interface FolderDraft {
   name: string
@@ -23,10 +24,12 @@ export function FolderEditor({
 }) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('')
+  const [picking, setPicking] = useState(false)
 
   useEffect(() => {
     setName(folder?.name ?? '')
     setEmoji(folder?.emoji ?? '')
+    setPicking(false)
   }, [folder])
 
   function submit() {
@@ -51,6 +54,7 @@ export function FolderEditor({
             <input
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
+              onFocus={() => setPicking(true)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               placeholder="📚"
               className="w-14 rounded-md border border-line bg-panel-2 px-3 py-2 text-center text-base outline-none focus:border-muted"
@@ -68,6 +72,16 @@ export function FolderEditor({
             />
           </div>
         </div>
+
+        {picking && (
+          <EmojiPickerPanel
+            onPick={(e) => {
+              setEmoji(e)
+              setPicking(false)
+            }}
+            onClose={() => setPicking(false)}
+          />
+        )}
 
         <div className="flex items-center gap-2">
           <button

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Routine } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, type WeekdayIndex, type WeekParity } from '@/lib/date'
+import { EmojiPickerPanel } from '@/ui/EmojiPicker'
 
 export interface RoutineDraft {
   name: string
@@ -37,6 +38,7 @@ export function RoutineEditor({
 }) {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('')
+  const [picking, setPicking] = useState(false)
   const [activeDays, setActiveDays] = useState<WeekdayIndex[]>(ALL_DAYS)
   const [timesPerWeek, setTimesPerWeek] = useState<number | null>(null)
   const [weeks, setWeeks] = useState<WeekParity | null>(null)
@@ -44,6 +46,7 @@ export function RoutineEditor({
   useEffect(() => {
     setName(routine?.name ?? '')
     setEmoji(routine?.emoji ?? '')
+    setPicking(false)
     setActiveDays(routine?.activeDays ?? ALL_DAYS)
     setTimesPerWeek(routine?.timesPerWeek ?? null)
     setWeeks(routine?.weeks ?? null)
@@ -77,6 +80,7 @@ export function RoutineEditor({
             <input
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
+              onFocus={() => setPicking(true)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               placeholder="🏃"
               className="w-14 rounded-md border border-line bg-panel-2 px-3 py-2 text-center text-base outline-none focus:border-muted"
@@ -94,6 +98,16 @@ export function RoutineEditor({
             />
           </div>
         </div>
+
+        {picking && (
+          <EmojiPickerPanel
+            onPick={(e) => {
+              setEmoji(e)
+              setPicking(false)
+            }}
+            onClose={() => setPicking(false)}
+          />
+        )}
 
         <label className="mb-1.5 block text-xs text-muted">Schedule</label>
         <div className="mb-3 flex gap-1.5">
