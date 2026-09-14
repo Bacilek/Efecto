@@ -106,7 +106,11 @@ export function TimetableGrid({
 
         <div
           className="relative overflow-hidden rounded-md border border-line-soft bg-panel"
-          style={{ height: GRID_HEIGHT }}
+          // content-box, not Tailwind's global border-box: every row is
+          // positioned in pixels against this element's content height, and
+          // border-box would let the 1px border eat 2px off that, clipping
+          // the last row's (Friday's) bottom edge against `overflow-hidden`.
+          style={{ height: GRID_HEIGHT, boxSizing: 'content-box' }}
         >
           {/* Today's tint sits below the hour ticks (next), not on the day
               row itself — `bg-today` is a fully opaque fill, and the row div

@@ -148,7 +148,11 @@ Layout: **rows = the 5 weekdays, the horizontal axis is time** — the same
 reading direction as the routine grid. Horizontal offsets are **percentages**
 (`pctOfDay`, `SPAN`), so all of 08:00–20:00 always fits the viewport exactly and
 nothing scrolls in either direction; only the day-label gutter (`GUTTER`) and the
-row height are fixed pixels. The trade-off is narrow blocks: on a 360px phone an
+row height are fixed pixels. Rows are positioned in pixels (`top: i * ROW_HEIGHT`)
+against the grid container's own `height: GRID_HEIGHT`, so that container needs
+`boxSizing: 'content-box'` set explicitly — Tailwind's global `border-box` would
+let its 1px border eat into that height, clipping the last row (Friday) against
+`overflow-hidden`. The trade-off is narrow blocks: on a 360px phone an
 hour is ~25px and a two-hour lesson ~50px, so long codes truncate. Going back to
 a fixed pixels-per-minute scale with sideways scrolling is a one-constant
 change.
