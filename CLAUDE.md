@@ -157,6 +157,11 @@ Labels are centred on what they label: an hour number sits over its own column
 (`HOUR_PCT` wide, so the 19 doesn't overflow the right edge) and a day label is
 centred in the `GUTTER`. Today's row is tinted `bg-today` with its label in
 brass, matching the routine grid — but only in the current week (`showNow`).
+`bg-today` is a fully opaque fill, and unlike the routine grid's `<td>`s
+(where a background can never cover a cell's own border), the timetable's hour
+ticks are separate absolutely-positioned siblings — so the tint is painted as
+its own rectangle *before* them in the grid, not as a class on the day row
+itself, or it would blot every tick out across the whole row.
 
 - `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.

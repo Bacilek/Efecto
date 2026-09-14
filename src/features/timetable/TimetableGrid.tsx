@@ -108,6 +108,18 @@ export function TimetableGrid({
           className="relative overflow-hidden rounded-md border border-line-soft bg-panel"
           style={{ height: GRID_HEIGHT }}
         >
+          {/* Today's tint sits below the hour ticks (next), not on the day
+              row itself — `bg-today` is a fully opaque fill, and the row div
+              paints after (on top of) the ticks in DOM order, so tinting it
+              directly would blot the ticks out across the whole row. */}
+          {showNow && weekdayIndex(now) <= 4 && (
+            <div
+              className="absolute inset-x-0 bg-today"
+              style={{ top: weekdayIndex(now) * ROW_HEIGHT, height: ROW_HEIGHT }}
+              aria-hidden
+            />
+          )}
+
           {HOURS.slice(1, -1).map((h) => (
             <div
               key={h}
@@ -124,12 +136,7 @@ export function TimetableGrid({
             return (
               <div
                 key={d}
-                className={cn(
-                  'absolute inset-x-0',
-                  i > 0 && 'border-t border-line-soft',
-                  // today's row is tinted, as it is in the routine grid
-                  showNow && weekdayIndex(now) === d && 'bg-today',
-                )}
+                className={cn('absolute inset-x-0', i > 0 && 'border-t border-line-soft')}
                 style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
                 <button
