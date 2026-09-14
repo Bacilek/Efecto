@@ -116,73 +116,90 @@ export function TimetableGrid({
             />
           ))}
 
-          {DAYS.map((d, i) => (
-            <div
-              key={d}
-              className={cn(
-                'absolute inset-x-0',
-                i > 0 && 'border-t border-line-soft',
-                // today's row is tinted, as it is in the routine grid
-                showNow && weekdayIndex(now) === d && 'bg-today',
-              )}
-              style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
-            >
-              <button
-                type="button"
-                className="absolute inset-0 h-full w-full"
-                onClick={(e) => slotTap(d, e)}
-                aria-label={`Add a lesson on ${DAY_LABELS[d]}`}
-              />
-              {byDay[d].map(({ lesson, happening, left, width, top, height }) => (
+          {DAYS.map((d, i) => {
+            // How much of this row is behind us, in the same 0..100 domain as
+            // a lesson's own `left`/`width` — only lesson blocks grey out with
+            // it (below), the grid itself is never touched.
+            const cut = showNow ? elapsedPct(d, now) : 0
+            return (
+              <div
+                key={d}
+                className={cn(
+                  'absolute inset-x-0',
+                  i > 0 && 'border-t border-line-soft',
+                  // today's row is tinted, as it is in the routine grid
+                  showNow && weekdayIndex(now) === d && 'bg-today',
+                )}
+                style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
+              >
                 <button
-                  key={lesson.id}
                   type="button"
-                  onClick={() => onTapLesson(lesson)}
-                  style={{ left: `${left}%`, width: `${width}%`, top, height, minWidth: 22 }}
-                  className={cn(
-                    'absolute flex flex-col justify-center overflow-hidden rounded px-0.5 text-center',
-                    happening
-                      ? `border-[1.5px] ${KIND_STYLES[lesson.kind]}`
-                      : 'border border-dashed border-line bg-panel-2',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'w-full truncate text-[11px] leading-tight',
-                      happening ? 'text-parchment' : 'text-dim line-through',
-                    )}
-                  >
-                    {lesson.name}
-                    {lesson.group && (
-                      <span className={happening ? 'text-muted' : undefined}>/{lesson.group}</span>
-                    )}
-                  </span>
-                  {lesson.recorded && (
-                    <CameraIcon
+                  className="absolute inset-0 h-full w-full"
+                  onClick={(e) => slotTap(d, e)}
+                  aria-label={`Add a lesson on ${DAY_LABELS[d]}`}
+                />
+                {byDay[d].map(({ lesson, happening, left, width, top, height }) => {
+                  // The fraction of *this block* that's already behind us: 0
+                  // short of `cut`, 100 once it's fully past, in between while
+                  // "now" falls inside it.
+                  const elapsed =
+                    happening && width > 0
+                      ? Math.min(100, Math.max(0, ((cut - left) / width) * 100))
+                      : 0
+                  return (
+                    <button
+                      key={lesson.id}
+                      type="button"
+                      onClick={() => onTapLesson(lesson)}
+                      style={{ left: `${left}%`, width: `${width}%`, top, height, minWidth: 22 }}
                       className={cn(
-                        'pointer-events-none absolute right-px top-px',
-                        happening ? 'text-parchment' : 'text-dim',
-                      )}
-                    />
-                  )}
-                  {lesson.room && (
-                    <span
-                      className={cn(
-                        'w-full truncate font-mono text-[10px] leading-tight',
-                        happening ? 'text-muted' : 'text-dim',
+                        'absolute flex flex-col justify-center overflow-hidden rounded px-0.5 text-center',
+                        happening
+                          ? `border-[1.5px] ${KIND_STYLES[lesson.kind]}`
+                          : 'border border-dashed border-line bg-panel-2',
                       )}
                     >
-                      {lesson.room}
-                    </span>
-                  )}
-                  <AbsenceDots lesson={lesson} faded={!happening} />
-                </button>
-              ))}
+                      <span
+                        className={cn(
+                          'w-full truncate text-[11px] leading-tight',
+                          happening ? 'text-parchment' : 'text-dim line-through',
+                        )}
+                      >
+                        {lesson.name}
+                        {lesson.group && (
+                          <span className={happening ? 'text-muted' : undefined}>
+                            /{lesson.group}
+                          </span>
+                        )}
+                      </span>
+                      {lesson.recorded && (
+                        <CameraIcon
+                          className={cn(
+                            'pointer-events-none absolute right-px top-px',
+                            happening ? 'text-parchment' : 'text-dim',
+                          )}
+                        />
+                      )}
+                      {lesson.room && (
+                        <span
+                          className={cn(
+                            'w-full truncate font-mono text-[10px] leading-tight',
+                            happening ? 'text-muted' : 'text-dim',
+                          )}
+                        >
+                          {lesson.room}
+                        </span>
+                      )}
+                      <AbsenceDots lesson={lesson} faded={!happening} />
+                      <ElapsedShade pct={elapsed} />
+                    </button>
+                  )
+                })}
 
-              <ElapsedShade pct={showNow ? elapsedPct(d, now) : 0} />
-              {marker?.day === d && <NowLine pct={marker.left} />}
-            </div>
-          ))}
+                {marker?.day === d && <NowLine pct={marker.left} />}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -240,8 +257,10 @@ function AbsenceDots({ lesson, faded }: { lesson: Lesson; faded: boolean }) {
 }
 
 /**
- * Dims the part of a day that has already happened. Sits above the lesson
- * blocks so it shades them too, and never swallows a tap.
+ * Dims the part of *one lesson block* that has already happened — `pct` is a
+ * fraction of the block's own width, not the day's. Scoped to the block
+ * rather than the whole row so the grid lines behind empty time never lose
+ * their tint; a block straddling "now" shades only its passed left edge.
  */
 function ElapsedShade({ pct }: { pct: number }) {
   if (pct <= 0) return null

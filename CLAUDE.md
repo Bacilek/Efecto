@@ -199,10 +199,15 @@ brass, matching the routine grid — but only in the current week (`showNow`).
   tap down to the hour, capped at `DAY_END - 60`); tap a lesson to edit it.
   `LessonEditor` is a bottom sheet mirroring `RoutineEditor`.
 - A vertical brass **"now" line** marks the current time to the minute in
-  today's row, and everything to its left is dimmed (`bg-ink/60` above the
-  blocks, `pointer-events-none` so it never eats a tap): whole rows for earlier
-  weekdays, a partial one for today. `nowMarker` / `elapsedPct` in `layout.ts`
-  do the maths; `lib/useNow.ts` re-renders every 30 s.
+  today's row. `nowMarker` / `elapsedPct` in `layout.ts` do the maths;
+  `lib/useNow.ts` re-renders every 30 s.
+  - Only **lesson blocks** grey out with the past (`bg-ink/60` scoped to each
+    block's own rectangle, `pointer-events-none`), never the grid itself — the
+    hour lines and row borders stay put underneath so the table never looks
+    like it lost its structure. A block wholly behind "now" greys out
+    entirely; one straddling it greys just its passed left edge, computed by
+    comparing the block's own `left`/`width` against `elapsedPct`'s cut point,
+    both in the same 0..100 day-percentage domain.
   - Both go quiet at the **weekend** — the timetable is a weekday template, so
     there is no row to point at, and greying all five days from Saturday morning
     would say nothing useful.
@@ -370,9 +375,10 @@ Timetable — a recorded lesson carries a camera in its top-right corner, an
 `absenceLimit` one a row of dots that fill red as absences are recorded, and
 all of 08:00–20:00 fits without scrolling, blocks are coloured by
 kind with no hour line crossing a two-hour lesson, the "now" line sits at the
-right minute on a weekday with everything left of it dimmed, week paging stops
-at both ends of the semester, and an exception renders as a struck-through ghost
-that can still be tapped to restore.
+right minute on a weekday with lesson blocks behind it greyed (a straddled one
+only on its passed edge) while the grid lines and row borders stay visible
+throughout, week paging stops at both ends of the semester, and an exception
+renders as a struck-through ghost that can still be tapped to restore.
 
 Changing `tailwind.config.js` (or `postcss.config.js` / `vite.config.ts`)
 **needs the dev server restarted** — PostCSS caches the config at startup, so new
