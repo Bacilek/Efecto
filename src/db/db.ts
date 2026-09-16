@@ -252,6 +252,20 @@ db.version(5)
     }
   })
 
+const writeListeners = new Set<() => void>()
+
+/**
+ * Fires after any write to a synced table. The sync engine listens so a change
+ * reaches the other device on its own, rather than waiting for the next poll or
+ * for someone to press a button.
+ */
+export function onLocalWrite(fn: () => void): () => void {
+  writeListeners.add(fn)
+  return () => writeListeners.delete(fn)
+}
+
+const notifyWrite = () => writeListeners.forEach((fn) => fn())
+
 // Stamp `updatedAt` on every write so the sync engine never has to trust a call
 // site to remember. A mutation that passes its own stamp keeps it — that is how
 // `applyRemote` writes a pulled row without making it look locally modified.
@@ -259,10 +273,13 @@ for (const name of SYNCED_TABLES) {
   const table = db.table(name)
   table.hook('creating', (_key, obj: { updatedAt?: number; createdAt?: number }) => {
     obj.updatedAt ??= obj.createdAt ?? Date.now()
+    notifyWrite()
   })
   table.hook('updating', function (mods: object) {
+    notifyWrite()
     return 'updatedAt' in mods ? undefined : { updatedAt: Date.now() }
   })
+  table.hook('deleting', notifyWrite)
 }
 
 export function entryId(routineId: string, dateISO: string): string {

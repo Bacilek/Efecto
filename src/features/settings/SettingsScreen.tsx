@@ -1,7 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { db } from '@/db/db'
+import { db, SYNCED_TABLES } from '@/db/db'
 import { seedIfEmpty } from '@/db/seed'
+import { resetSyncState } from '@/sync/engine'
 import { ScreenHeader } from '@/ui/ScreenHeader'
+import { SyncSection } from './SyncSection'
 
 interface Backup {
   app: 'efecto'
@@ -55,7 +57,11 @@ export function SettingsScreen() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await db.lessons.bulkAdd((parsed.lessons ?? []) as any[])
       })
-      setMsg('Data imported.')
+      // The import replaced everything wholesale, so this device no longer
+      // shares a history with the account — the next sign-in asks which copy
+      // wins rather than pushing the restored rows over the cloud's.
+      await resetSyncState()
+      setMsg('Data imported. Sign in again to re-link sync.')
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Import failed.')
     }
@@ -63,12 +69,12 @@ export function SettingsScreen() {
 
   async function resetData() {
     if (!confirm('Delete all data and restore the default routines?')) return
-    await db.transaction('rw', db.routines, db.entries, db.lessons, db.meta, async () => {
-      await db.routines.clear()
-      await db.entries.clear()
-      await db.lessons.clear()
-      await db.meta.clear()
+    const tables = [...SYNCED_TABLES.map((t) => db.table(t)), db.tombstones, db.meta]
+    await db.transaction('rw', tables, async () => {
+      for (const t of tables) await t.clear()
     })
+    // `meta` held the sync cursors, so they are already gone with it — the
+    // next sign-in treats this as a fresh device, which it now is.
     await seedIfEmpty()
     setMsg('Data reset to defaults.')
   }
@@ -77,6 +83,8 @@ export function SettingsScreen() {
     <>
       <ScreenHeader title="Settings" />
       <div className="space-y-3 px-4 pb-8">
+        <SyncSection />
+
         <Row
           label="Back up data"
           desc="Downloads a JSON file with routines, marks and the timetable."
@@ -111,9 +119,7 @@ export function SettingsScreen() {
 
         {msg && <p className="pt-1 text-sm text-muted">{msg}</p>}
 
-        <p className="pt-6 text-center text-xs text-dim">
-          Efecto · v0.1.0 · data stored on this device
-        </p>
+        <p className="pt-6 text-center text-xs text-dim">Efecto · v0.1.0</p>
       </div>
     </>
   )
