@@ -3,12 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, stamp, type Todo, type TodoFolder } from '@/db/db'
 import { removeRecord, removeRecords } from '@/db/remove'
 import { cn } from '@/lib/cn'
-import { todayISO } from '@/lib/date'
+import { formatShort, fromISODate, todayISO } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
-import { isCarriedOver, isOnToday } from './today'
+import { isCarriedOver, isOnToday, isPlannedAhead, nextDay } from './today'
 
 /** `{ todo: null }` opens the sheet for a new todo in `folderId`. */
 type TodoTarget = { todo: Todo | null; folderId: string | null; plannedFor: string | null } | null
@@ -82,9 +82,19 @@ export function TodosScreen() {
     })
   }
 
-  /** Pull a task onto Today, or drop it back to its folder. */
+  /**
+   * Pull a task onto Today, or drop it back to its folder. A task already
+   * pushed ahead to a later day is *not* on Today, so the sun pulls it back
+   * here rather than unplanning it.
+   */
   async function togglePlanned(todo: Todo) {
-    await db.todos.update(todo.id, { plannedFor: todo.plannedFor ? undefined : today })
+    const on = !!todo.plannedFor && todo.plannedFor <= today
+    await db.todos.update(todo.id, { plannedFor: on ? undefined : today })
+  }
+
+  /** "Not today after all" — park the task on tomorrow's list. */
+  async function pushToTomorrow(todo: Todo) {
+    await db.todos.update(todo.id, { plannedFor: nextDay(today) })
   }
 
   async function saveTodo(draft: TodoDraft) {
@@ -170,6 +180,7 @@ export function TodosScreen() {
           onEditFolder={() => open.folder && setFolderEditor({ folder: open.folder })}
           onToggleTodo={(t) => void toggleDone(t)}
           onTogglePlanned={(t) => void togglePlanned(t)}
+          onPushToTomorrow={(t) => void pushToTomorrow(t)}
           onEditTodo={editTodo}
         />
       ) : (
@@ -206,6 +217,7 @@ export function TodosScreen() {
                     folder={folderOf.get(t.id) ?? null}
                     onToggle={() => void toggleDone(t)}
                     onTogglePlanned={() => void togglePlanned(t)}
+                    onPushToTomorrow={() => void pushToTomorrow(t)}
                     onEdit={() => editTodo(t)}
                   />
                 ))}
@@ -585,6 +597,7 @@ function FolderView({
   onEditFolder,
   onToggleTodo,
   onTogglePlanned,
+  onPushToTomorrow,
   onEditTodo,
 }: {
   section: Section
@@ -593,6 +606,7 @@ function FolderView({
   onEditFolder: () => void
   onToggleTodo: (t: Todo) => void
   onTogglePlanned: (t: Todo) => void
+  onPushToTomorrow: (t: Todo) => void
   onEditTodo: (t: Todo) => void
 }) {
   const { folder, todos } = section
@@ -634,6 +648,7 @@ function FolderView({
               today={today}
               onToggle={() => onToggleTodo(t)}
               onTogglePlanned={() => onTogglePlanned(t)}
+              onPushToTomorrow={() => onPushToTomorrow(t)}
               onEdit={() => onEditTodo(t)}
             />
           ))}
@@ -649,6 +664,7 @@ function TodoRow({
   folder,
   onToggle,
   onTogglePlanned,
+  onPushToTomorrow,
   onEdit,
 }: {
   todo: Todo
@@ -657,9 +673,13 @@ function TodoRow({
   folder?: TodoFolder | null
   onToggle: () => void
   onTogglePlanned: () => void
+  onPushToTomorrow: () => void
   onEdit: () => void
 }) {
-  const planned = !!todo.plannedFor
+  // Lit only for a task that is actually on Today — one pushed ahead is
+  // planned, but not for now.
+  const planned = !!todo.plannedFor && todo.plannedFor <= today
+  const ahead = isPlannedAhead(todo, today)
 
   return (
     <li className="flex items-start gap-2 border-b border-line-soft last:border-b-0">
@@ -682,10 +702,11 @@ function TodoRow({
         <span className={cn('block', todo.done ? 'text-dim line-through' : 'text-parchment')}>
           {todo.title}
         </span>
-        {(todo.note || folder || isCarriedOver(todo, today)) && (
+        {(todo.note || folder || ahead || isCarriedOver(todo, today)) && (
           <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
             {folder && <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>}
             {isCarriedOver(todo, today) && <span className="text-missed">carried over</span>}
+            {ahead && <span className="text-brass-dim">{aheadLabel(todo, today)}</span>}
             {todo.note && <span>{todo.note}</span>}
           </span>
         )}
@@ -712,8 +733,33 @@ function TodoRow({
           ☀︎
         </span>
       </button>
+      {/* "Not today" — one tap parks the task on tomorrow's list. Hidden on a
+          ticked task (there is nothing left to postpone), but it still holds
+          its slot so the rows stay aligned. */}
+      <button
+        type="button"
+        onClick={onPushToTomorrow}
+        disabled={todo.done}
+        aria-label="Move to tomorrow"
+        title="Move to tomorrow"
+        className={cn(
+          'flex h-12 w-11 shrink-0 items-center justify-center',
+          todo.done && 'invisible',
+        )}
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-base leading-none text-dim transition-colors hover:text-muted">
+          →
+        </span>
+      </button>
     </li>
   )
+}
+
+/** How far ahead a pushed task sits: tomorrow by name, anything further by date. */
+function aheadLabel(todo: Todo, today: string): string {
+  return todo.plannedFor === nextDay(today)
+    ? 'tomorrow'
+    : formatShort(fromISODate(todo.plannedFor!))
 }
 
 /** Floating "+" — the primary way to add a todo, anchored above the nav bar. */

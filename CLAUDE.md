@@ -335,7 +335,14 @@ Adding:
   present everywhere: it prefills **the open folder** (or the default one), and
   on the Today tab it also prefills today;
 - the **☀︎ sun** on every row pulls a task onto Today; tapping a lit one drops it
-  back to Someday — the quick gesture, next to the editor's "Plan" row;
+  back to Someday — the quick gesture, next to the editor's "Plan" row. It is
+  lit for `plannedFor <= today` only, so a task pushed ahead reads as unplanned
+  for now and the sun pulls it back to today rather than clearing it;
+- the **→ arrow** next to it pushes the task to **tomorrow** (`nextDay`) — the
+  explicit "not today after all", as opposed to simply leaving it unfinished,
+  which carries it over instead. It is hidden (but keeps its slot) on a ticked
+  task. A task planned for a later day waits in its folder, labelled
+  "tomorrow" or with its date;
 - the screen header's **"+ folder"** creates a category (All tab only).
 
 Drag a folder tile to reorder the overview grid — same spirit as the routine
@@ -461,8 +468,10 @@ add/edit/delete works, excused cells leave the `%` alone, and focusing the
 emoji field opens the search panel — typing "book" finds 📚, tapping it fills
 the field and closes the panel.
 
-Todos — Today lists exactly the starred tasks with their folder, the sun button adds and
-removes them and yesterday's unfinished ones stay as "carried over"; on All the
+Todos — Today lists exactly the planned tasks with their folder, the sun button
+adds and removes them, → moves one to tomorrow (it leaves Today and shows
+"tomorrow" in its folder) and yesterday's unfinished ones stay as "carried
+over"; on All the
 folder tiles wrap instead of overflowing sideways at 360px, tapping one opens
 its tasks and the back arrow returns, "+" adds into the open folder,
 ticking sinks a task to the bottom struck through, edits and deletes **survive

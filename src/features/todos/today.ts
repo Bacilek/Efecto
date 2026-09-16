@@ -1,5 +1,5 @@
 import type { Todo } from '@/db/db'
-import { toISODate } from '@/lib/date'
+import { addDays, fromISODate, toISODate } from '@/lib/date'
 
 /**
  * Is the todo on the **Today** tab?
@@ -18,4 +18,17 @@ export function isOnToday(todo: Todo, todayISO: string): boolean {
 /** A planned task from an earlier day that is still open. */
 export function isCarriedOver(todo: Todo, todayISO: string): boolean {
   return !todo.done && !!todo.plannedFor && todo.plannedFor < todayISO
+}
+
+/**
+ * Planned, but for a day that hasn't come yet — pushed ahead with "→", so it
+ * waits in its folder instead of sitting on Today.
+ */
+export function isPlannedAhead(todo: Todo, todayISO: string): boolean {
+  return !!todo.plannedFor && todo.plannedFor > todayISO
+}
+
+/** The day after `todayISO`, as `YYYY-MM-DD`. */
+export function nextDay(todayISO: string): string {
+  return toISODate(addDays(fromISODate(todayISO), 1))
 }
