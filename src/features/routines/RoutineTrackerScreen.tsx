@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, entryId, newId, type Entry, type Routine } from '@/db/db'
+import { db, entryId, newId, stamp, type Entry, type Routine } from '@/db/db'
+import { removeRecord, removeRecords } from '@/db/remove'
 import { fromISODate, isoWeek, toISODate, todayISO, weekParity } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
@@ -51,7 +52,7 @@ export function RoutineTrackerScreen() {
       resolveCellState(routine, fromISODate(dateISO), undefined, todayISO(), parity) === 'missed'
     const next = nextStatus(current?.status, clearsToMissed)
     if (next === undefined) {
-      await db.entries.delete(id)
+      await removeRecord('entries', id)
     } else {
       await db.entries.put({
         id,
@@ -84,7 +85,7 @@ export function RoutineTrackerScreen() {
         timesPerWeek: draft.timesPerWeek ?? undefined,
         weeks: draft.weeks ?? undefined,
         archived: false,
-        createdAt: Date.now(),
+        ...stamp(),
       })
     }
     setEditor(null)
@@ -99,10 +100,9 @@ export function RoutineTrackerScreen() {
   async function deleteRoutine() {
     const target = editor?.routine
     if (!target) return
-    await db.transaction('rw', db.routines, db.entries, async () => {
-      await db.entries.where('routineId').equals(target.id).delete()
-      await db.routines.delete(target.id)
-    })
+    const entryIds = await db.entries.where('routineId').equals(target.id).primaryKeys()
+    await removeRecords('entries', entryIds)
+    await removeRecord('routines', target.id)
     setEditor(null)
   }
 

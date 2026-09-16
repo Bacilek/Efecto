@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, type Lesson } from '@/db/db'
+import { db, newId, stamp, type Lesson } from '@/db/db'
+import { removeRecord } from '@/db/remove'
 import { toISODate, weekParity, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
@@ -45,7 +46,7 @@ export function TimetableScreen() {
     if (target) {
       await db.lessons.update(target.id, fields)
     } else {
-      await db.lessons.add({ id: newId(), createdAt: Date.now(), ...fields })
+      await db.lessons.add({ id: newId(), ...stamp(), ...fields })
     }
     setEditor(null)
   }
@@ -71,7 +72,7 @@ export function TimetableScreen() {
   async function deleteLesson() {
     const target = editor?.lesson
     if (!target) return
-    await db.lessons.delete(target.id)
+    await removeRecord('lessons', target.id)
     setEditor(null)
   }
 

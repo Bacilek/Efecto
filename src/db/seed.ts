@@ -99,6 +99,7 @@ async function runSeed(): Promise<void> {
       time: s.time,
       archived: false,
       createdAt: now + i,
+      updatedAt: now + i,
     }))
 
     await db.routines.bulkAdd(rows)
@@ -106,7 +107,7 @@ async function runSeed(): Promise<void> {
   })
 }
 
-type SeedLesson = Omit<Lesson, 'id' | 'createdAt'>
+type SeedLesson = Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>
 
 /**
  * The user's timetable, inserted once when the `lessons` table is empty and
@@ -185,6 +186,7 @@ async function runTimetableSeed(): Promise<void> {
     const rows: Lesson[] = SEED_TIMETABLE.map((l, i) => ({
       id: newId(),
       createdAt: now + i,
+      updatedAt: now + i,
       ...l,
     }))
 
@@ -263,6 +265,7 @@ async function runFolderSeed(): Promise<void> {
       order: i,
       isDefault: f.isDefault,
       createdAt: now + i,
+      updatedAt: now + i,
     }))
 
     await db.todoFolders.bulkAdd(rows)

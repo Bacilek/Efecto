@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, type Todo, type TodoFolder } from '@/db/db'
+import { db, newId, stamp, type Todo, type TodoFolder } from '@/db/db'
+import { removeRecord, removeRecords } from '@/db/remove'
 import { cn } from '@/lib/cn'
 import { todayISO } from '@/lib/date'
 import { ScreenHeader } from '@/ui/ScreenHeader'
@@ -107,7 +108,7 @@ export function TodosScreen() {
         done: false,
         plannedFor: draft.plannedFor ?? undefined,
         order: maxOrder + 1,
-        createdAt: Date.now(),
+        ...stamp(),
       })
     }
     setTodoEditor(null)
@@ -116,7 +117,7 @@ export function TodosScreen() {
   async function deleteTodo() {
     const target = todoEditor?.todo
     if (!target) return
-    await db.todos.delete(target.id)
+    await removeRecord('todos', target.id)
     setTodoEditor(null)
   }
 
@@ -134,7 +135,7 @@ export function TodosScreen() {
         name: draft.name,
         emoji: draft.emoji || undefined,
         order: maxOrder + 1,
-        createdAt: Date.now(),
+        ...stamp(),
       })
     }
     setFolderEditor(null)
@@ -149,10 +150,9 @@ export function TodosScreen() {
   async function deleteFolder() {
     const target = folderEditor?.folder
     if (!target) return
-    await db.transaction('rw', db.todoFolders, db.todos, async () => {
-      await db.todos.filter((t) => t.folderId === target.id).delete()
-      await db.todoFolders.delete(target.id)
-    })
+    const orphans = (todos ?? []).filter((t) => t.folderId === target.id).map((t) => t.id)
+    await removeRecords('todos', orphans)
+    await removeRecord('todoFolders', target.id)
     setFolderEditor(null)
     setOpenKey(null)
   }
@@ -387,7 +387,9 @@ function FolderTiles({
 
   const visualFolders = useMemo(
     () =>
-      drag && drag.from !== drag.to ? arrayMove(folderSections, drag.from, drag.to) : folderSections,
+      drag && drag.from !== drag.to
+        ? arrayMove(folderSections, drag.from, drag.to)
+        : folderSections,
     [folderSections, drag],
   )
 

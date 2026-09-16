@@ -27,6 +27,8 @@ export interface Routine {
   weeks?: WeekParity
   archived: boolean
   createdAt: number
+  /** epoch ms of the last local write; the sync engine's conflict tie-break */
+  updatedAt: number
 }
 
 export interface Entry {
@@ -92,6 +94,8 @@ export interface Lesson {
    */
   absentDates?: string[]
   createdAt: number
+  /** epoch ms of the last local write; the sync engine's conflict tie-break */
+  updatedAt: number
 }
 
 /**
@@ -111,6 +115,8 @@ export interface TodoFolder {
    */
   isDefault?: boolean
   createdAt: number
+  /** epoch ms of the last local write; the sync engine's conflict tie-break */
+  updatedAt: number
 }
 
 /**
@@ -136,11 +142,34 @@ export interface Todo {
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number
+  /** epoch ms of the last local write; the sync engine's conflict tie-break */
+  updatedAt: number
 }
 
 export interface Meta {
   key: string
   value: unknown
+}
+
+/**
+ * The tables the sync engine carries. `meta` is deliberately absent: it holds
+ * per-device state (seed guards, the sync cursor) that must not travel.
+ */
+export const SYNCED_TABLES = ['routines', 'entries', 'lessons', 'todoFolders', 'todos'] as const
+export type SyncedTable = (typeof SYNCED_TABLES)[number]
+
+/**
+ * A record that was deleted locally. Deletes are hard, so without this a
+ * deletion would look identical to "this device has never seen that row" and
+ * the next pull would simply resurrect it.
+ */
+export interface Tombstone {
+  /** `${table}|${recordId}` */
+  id: string
+  table: SyncedTable
+  recordId: string
+  /** epoch ms of the delete — compared against a remote row's `updatedAt` */
+  deletedAt: number
 }
 
 export const db = new Dexie('efecto') as Dexie & {
@@ -149,6 +178,7 @@ export const db = new Dexie('efecto') as Dexie & {
   lessons: EntityTable<Lesson, 'id'>
   todoFolders: EntityTable<TodoFolder, 'id'>
   todos: EntityTable<Todo, 'id'>
+  tombstones: EntityTable<Tombstone, 'id'>
   meta: EntityTable<Meta, 'key'>
 }
 
@@ -197,8 +227,56 @@ db.version(4).stores({
   meta: 'key',
 })
 
+// v5 adds sync: an `updatedAt` stamp on every synced row plus the tombstone
+// table that lets a delete travel. Rows written before the stamp existed fall
+// back to `createdAt` — the oldest plausible time, so a genuine edit on another
+// device always wins over an un-stamped local row.
+db.version(5)
+  .stores({
+    routines: 'id, order, updatedAt',
+    entries: 'id, routineId, date, updatedAt',
+    lessons: 'id, day, updatedAt',
+    todoFolders: 'id, order, updatedAt',
+    todos: 'id, order, updatedAt',
+    tombstones: 'id, deletedAt',
+    meta: 'key',
+  })
+  .upgrade(async (tx) => {
+    for (const name of SYNCED_TABLES) {
+      await tx
+        .table<{ createdAt?: number; updatedAt?: number }>(name)
+        .toCollection()
+        .modify((row) => {
+          row.updatedAt ??= row.createdAt ?? 0
+        })
+    }
+  })
+
+// Stamp `updatedAt` on every write so the sync engine never has to trust a call
+// site to remember. A mutation that passes its own stamp keeps it — that is how
+// `applyRemote` writes a pulled row without making it look locally modified.
+for (const name of SYNCED_TABLES) {
+  const table = db.table(name)
+  table.hook('creating', (_key, obj: { updatedAt?: number; createdAt?: number }) => {
+    obj.updatedAt ??= obj.createdAt ?? Date.now()
+  })
+  table.hook('updating', function (mods: object) {
+    return 'updatedAt' in mods ? undefined : { updatedAt: Date.now() }
+  })
+}
+
 export function entryId(routineId: string, dateISO: string): string {
   return `${routineId}|${dateISO}`
+}
+
+/**
+ * `createdAt` / `updatedAt` for a brand-new row. The `creating` hook would fill
+ * `updatedAt` in anyway; spelling it out keeps the two stamps identical and the
+ * record type honest at the call site.
+ */
+export function stamp(): { createdAt: number; updatedAt: number } {
+  const now = Date.now()
+  return { createdAt: now, updatedAt: now }
 }
 
 export function newId(): string {
