@@ -334,8 +334,8 @@ Adding:
 - the floating round **"+"** above the nav bar is the only add gesture and is
   present everywhere: it prefills **the open folder** (or the default one), and
   on the Today tab it also prefills today;
-- the **★** on every row pulls a task onto Today or drops it back — the quick
-  gesture, next to the editor's "Plan" row;
+- the **☀︎ sun** on every row pulls a task onto Today; tapping a lit one drops it
+  back to Someday — the quick gesture, next to the editor's "Plan" row;
 - the screen header's **"+ folder"** creates a category (All tab only).
 
 Drag a folder tile to reorder the overview grid — same spirit as the routine
@@ -461,7 +461,7 @@ add/edit/delete works, excused cells leave the `%` alone, and focusing the
 emoji field opens the search panel — typing "book" finds 📚, tapping it fills
 the field and closes the panel.
 
-Todos — Today lists exactly the starred tasks with their folder, ★ adds and
+Todos — Today lists exactly the starred tasks with their folder, the sun button adds and
 removes them and yesterday's unfinished ones stay as "carried over"; on All the
 folder tiles wrap instead of overflowing sideways at 360px, tapping one opens
 its tasks and the back arrow returns, "+" adds into the open folder,

@@ -194,7 +194,7 @@ export function TodosScreen() {
             todayTodos.length === 0 ? (
               <EmptyState
                 title="Nothing planned for today."
-                hint={'Pull tasks in from "All", or add one with "+".'}
+                hint={'Tap ☀︎ on any task to pull it in, or add one with "+".'}
               />
             ) : (
               <ul className="px-4 pb-28">
@@ -694,12 +694,23 @@ function TodoRow({
         type="button"
         onClick={onTogglePlanned}
         aria-label={planned ? 'Remove from today' : 'Do today'}
-        className={cn(
-          'flex h-12 w-10 shrink-0 items-center justify-center text-sm',
-          planned ? 'text-brass' : 'text-dim',
-        )}
+        title={planned ? 'Remove from today' : 'Do today'}
+        className="flex h-12 w-11 shrink-0 items-center justify-center"
       >
-        ★
+        {/* The sun is the "do it today" gesture, on every row wherever it is
+            listed; tapping a lit one puts the task back to Someday. Text
+            presentation (U+FE0E) so it takes the palette instead of the
+            platform's own colour emoji. */}
+        <span
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-full border text-base leading-none transition-colors',
+            planned
+              ? 'border-brass-dim bg-brass-dim/30 text-brass'
+              : 'border-line text-dim hover:text-muted',
+          )}
+        >
+          ☀︎
+        </span>
       </button>
     </li>
   )
