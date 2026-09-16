@@ -705,7 +705,11 @@ function TodoRow({
         {(todo.note || folder || ahead || isCarriedOver(todo, today)) && (
           <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
             {folder && <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>}
-            {isCarriedOver(todo, today) && <span className="text-missed">carried over</span>}
+            {isCarriedOver(todo, today) && (
+              <span className="text-missed">
+                carried over since {formatShort(fromISODate(todo.plannedFor!))}
+              </span>
+            )}
             {ahead && <span className="text-brass-dim">{aheadLabel(todo, today)}</span>}
             {todo.note && <span>{todo.note}</span>}
           </span>

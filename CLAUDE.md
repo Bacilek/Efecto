@@ -319,7 +319,8 @@ route):
 `features/todos/today.ts` decides what the **Today** tab shows. `isOnToday`
 takes `plannedFor <= today`, not `=== today`: an unfinished task **carries
 over** rather than silently dropping back into its folder overnight, and
-`isCarriedOver` labels it. A task ticked on an earlier day drops out — it is
+`isCarriedOver` labels it — "carried over since 14.09", naming the day it was
+first planned for, so a task quietly sliding from day to day is visible. A task ticked on an earlier day drops out — it is
 finished, and today's list is about what is still ahead. The list follows the
 folder order, so it reads in the same sequence as the tiles, and each row shows
 which folder it came from.
