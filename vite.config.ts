@@ -4,6 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  // Pinned because Supabase only redirects a magic link to an allow-listed URL:
+  // a port that quietly drifts to 5174 when a stale dev server still holds 5173
+  // breaks sign-in with no obvious cause. `strictPort` makes that collision an
+  // error you can see instead.
+  server: { port: 5173, strictPort: true },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
