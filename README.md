@@ -24,8 +24,9 @@ configured — without it nothing changes.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor → New query**, paste `supabase/schema.sql`, run it.
-3. Copy **Project Settings → API →** the Project URL and the anon key into a
-   `.env` file (see `.env.example`).
+3. Copy **Project Settings → API →** the Project URL and the **publishable**
+   key (`sb_publishable_…`) into a `.env` file (see `.env.example`).
+   Not the secret key — see below.
 4. Restart `npm run dev` — Vite reads `.env` at startup.
 
 Then **Settings → Sync**: enter an email, open the magic link it sends, and pick
@@ -34,8 +35,10 @@ and on every other device with **"Replace with the cloud copy"** — each instal
 seeds its own defaults, so merging both would give you two of everything. After
 that it syncs on its own: on save, on focus, and on a slow poll.
 
-The anon key belongs in the client; row level security is what keeps one
-account's rows away from another's.
+The publishable key belongs in the client: `VITE_`-prefixed variables are baked
+into the bundle, so it ships to every visitor, and row level security is what
+keeps one account's rows away from another's. The **secret** key bypasses RLS
+and must never go in a `VITE_` variable.
 
 ## Routine tracker
 

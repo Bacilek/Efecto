@@ -382,7 +382,10 @@ user_id | kind | id | data jsonb | deleted | updated_at bigint | synced_at times
 record. One table rather than five mirroring the stores, so adding a field to a
 `Lesson` or a `Todo` needs **no migration on the server** — the app owns the
 shape, the table owns the transport. RLS (`auth.uid() = user_id`) is the only
-thing separating accounts, which is why the anon key is safe in the client.
+thing separating accounts, which is why the **publishable** key (`sb_publishable_…`,
+the anon key before Supabase renamed it) is safe in the client — a `VITE_`
+variable is baked into the bundle, so it ships to every visitor. The secret key
+bypasses RLS and must never be used here.
 
 Two timestamps, and the split matters:
 
