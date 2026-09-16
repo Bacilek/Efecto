@@ -12,7 +12,8 @@ replaces a pile of productivity tools:
 2. **Timetable** — a weekly school timetable. Done (v1); see below.
 3. **Todos** — built-in task lists, grouped into folders. Done (v1); see below.
 4. **Calendar** — events + a day view. **Next up.**
-5. Later: cloud sync across devices, reminders/notifications, stats.
+5. **Cloud sync** across devices. Done (v1); see below.
+6. Later: reminders/notifications, stats.
 
 Design language: minimal, calm, dark, a bit "paper + brass". No clutter, few
 colours, large tap targets. Think a quiet dashboard, not a busy app.
@@ -48,8 +49,10 @@ src/
   lib/cn.ts
   lib/time.ts                  # "HH:MM" <-> minutes since midnight
   lib/useNow.ts                # clock hook, re-renders on an interval
-  db/db.ts                     # Dexie schema v4 (routines, entries, lessons,
-                               # todoFolders, todos, meta)
+  db/db.ts                     # Dexie schema v5 (routines, entries, lessons,
+                               # todoFolders, todos, tombstones, meta);
+                               # updatedAt stamping hooks + onLocalWrite
+  db/remove.ts                 # deletes that leave a tombstone behind
   db/seed.ts                   # default routines + the timetable, each inserted
                                # once when its table is empty; plus backfills
   features/
@@ -57,7 +60,10 @@ src/
     timetable/                 # school timetable — see below
                                # layout.ts (geometry) semester.ts occurrence.ts
     todos/  calendar/  settings/
+  sync/                        # supabase.ts (client + config flag)
+                               # engine.ts (push/pull/merge) useSync.ts (hook)
   ui/                          # ScreenHeader, EmptyState, ...
+supabase/schema.sql            # the one table sync needs; run once in Supabase
 ```
 
 ## Routine tracker — how it works
@@ -73,6 +79,7 @@ An edge week may spill into the neighbouring year; the limit is the week, not
 the date.
 
 Data (`db/db.ts`):
+
 - `Routine { id, name, emoji?, order, activeDays, time?, timesPerWeek?, weeks?, archived, createdAt }`
   - `emoji` optional single emoji, shown as the column header (falls back to `name`).
   - `activeDays` = which weekdays it applies to (0=Mon..6=Sun).
@@ -87,6 +94,7 @@ Data (`db/db.ts`):
   - Only explicit marks are stored. No entry = pending (or off / derived-missed).
 
 Cell state (`features/routines/status.ts` → `resolveCellState`):
+
 1. `weeks` set and this week is the other parity → **off** for the whole week
 2. `timesPerWeek` set → the entry's status, else **pending**. No day is owed, so
    every day is markable and **an unmarked past day is not a miss**
@@ -98,9 +106,10 @@ Cell state (`features/routines/status.ts` → `resolveCellState`):
 
 Tap cycles the status (`nextStatus`). 1 tap = done (green), 2 = missed (red),
 3 = busy (blue).
+
 - Today / future: `undefined → done → missed → busy → undefined` (empty box).
 - **Past**: an unmarked cell already renders red, so the empty step is invisible
-  there and is dropped — the cycle rotates over the *visible* state,
+  there and is dropped — the cycle rotates over the _visible_ state,
   `missed → busy → done → missed`. A past cell keeps an entry once marked;
   cleared and `missed` are identical on screen and in the stats.
 
@@ -172,7 +181,7 @@ brass, matching the routine grid — but only in the current week (`showNow`).
 `bg-today` is a fully opaque fill, and unlike the routine grid's `<td>`s
 (where a background can never cover a cell's own border), the timetable's hour
 ticks are separate absolutely-positioned siblings — so the tint is painted as
-its own rectangle *before* them in the grid, not as a class on the day row
+its own rectangle _before_ them in the grid, not as a class on the day row
 itself, or it would blot every tick out across the whole row.
 
 - `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, createdAt }`
@@ -185,7 +194,7 @@ itself, or it would blot every tick out across the whole row.
 - `absenceLimit` is how many **excused absences a semester** the subject allows
   (seminars and labs usually allow a few); `absentDates` are the dates actually
   missed. `features/timetable/absence.ts` turns the two into `{ limit, used,
-  left }`, counting only dates **inside the current semester** — so moving
+left }`, counting only dates **inside the current semester** — so moving
   `SEMESTER_START` / `SEMESTER_END` resets the allowance by itself, with no
   clearing of last term's dates.
   - An absence is not a cancellation: the lesson still happened, so this is a
@@ -247,7 +256,7 @@ itself, or it would blot every tick out across the whole row.
   `Lesson.skipDates` cancels individual dates, `Lesson.onlyDates` restricts the
   lesson to a list. `happensOn` applies three rules in a fixed order —
   `onlyDates` wins outright (naming a date is the most explicit thing there is),
-  then `skipDates`, then `weeks` parity. Note that *having* `onlyDates` makes it
+  then `skipDates`, then `weeks` parity. Note that _having_ `onlyDates` makes it
   a whitelist, so an empty one means "never runs" — otherwise cancelling the
   last listed date would flip the lesson back to weekly.
   - A lesson that doesn't happen that week is still drawn, as a **ghost**
@@ -321,6 +330,7 @@ so finishing something never makes it vanish, but it stops competing for
 attention.
 
 Adding:
+
 - the floating round **"+"** above the nav bar is the only add gesture and is
   present everywhere: it prefills **the open folder** (or the default one), and
   on the Today tab it also prefills today;
@@ -332,7 +342,7 @@ Drag a folder tile to reorder the overview grid — same spirit as the routine
 column drag (`features/todos/TodosScreen.tsx`'s `FolderTiles`): the grabbed
 tile follows the pointer 1:1 while the rest slide live into their target slot,
 held until the persisted `order` catches up. It is a wrapping 2D grid rather
-than a single row, so the slot math tracks row *and* column, and the column
+than a single row, so the slot math tracks row _and_ column, and the column
 count is measured from the live layout each drag (it follows the viewport, not
 a breakpoint). The "Unsorted" tile, when present, has no `order` of its own and
 always trails the real folders — it never takes part in the drag.
@@ -351,6 +361,66 @@ rename or delete it. Live data via `useLiveQuery`, same as the routine grid.
 he's building), **DnD** (the campaign he DMs), **School**, **Job** and
 **Others** — the default. The todos themselves start empty.
 
+## Sync — how it works
+
+Cross-device sync over **Supabase**, added because the app's data lived only in
+each browser's IndexedDB: a change made on the work PC was simply invisible on
+the personal one. Optional — with no `.env` the app is exactly what it was,
+local-only, and the Settings block says so instead of offering a sign-in that
+could not work.
+
+Setup is `.env.example` → `supabase/schema.sql` → `.env`, and **needs the dev
+server restarted** (Vite reads `.env` at startup).
+
+**The server side is one generic table**, `records`:
+
+```
+user_id | kind | id | data jsonb | deleted | updated_at bigint | synced_at timestamptz
+```
+
+`kind` is the Dexie store name, `id` the record's own local id, `data` the whole
+record. One table rather than five mirroring the stores, so adding a field to a
+`Lesson` or a `Todo` needs **no migration on the server** — the app owns the
+shape, the table owns the transport. RLS (`auth.uid() = user_id`) is the only
+thing separating accounts, which is why the anon key is safe in the client.
+
+Two timestamps, and the split matters:
+
+- `updated_at` is the **client's** stamp and does conflict resolution —
+  last-write-wins.
+- `synced_at` is **server** time and is the **pull cursor**. It has to be the
+  server's: with a client stamp, a device whose clock ran slow would push rows
+  landing _behind_ another device's cursor, which would then never see them.
+
+**Locally** (`db/db.ts`, schema v5): every synced row carries an `updatedAt`,
+stamped by Dexie `creating`/`updating` hooks so no call site has to remember —
+and a mutation that passes its own stamp keeps it, which is how a pulled row is
+written without looking locally modified. Deletes are hard, so a vanished row
+is indistinguishable from one never seen; `db/remove.ts` writes a **tombstone**
+alongside each delete, and every delete goes through it. Local tombstones are
+dropped once pushed — the server row (`deleted = true`) is the durable one.
+
+`sync/engine.ts` pushes then pulls. A remote row is applied only when its
+`updated_at` is **strictly** greater than the local one; strictly is what stops
+two devices bouncing a row back and forth, since an echo compares equal and is
+dropped on arrival. After applying, the push cursor moves past what was applied
+so it isn't sent straight back — clamped to this device's own clock, so a device
+running ahead can't push the cursor into the future and swallow edits made
+meanwhile.
+
+**The first sync on a device picks a direction** (`needsLinking` / `linkDevice`,
+the "Choose a starting point" panel). Every install seeds its own default
+routines, timetable and folders under locally generated ids, so a second device
+that merely merged would end up with two of everything. `upload` keeps this
+device's data, `download` discards it for the cloud's; afterwards it is an
+ordinary two-way merge. Signing out, importing a backup or resetting all clear
+the cursors, so the next sign-in asks again rather than pushing a restored copy
+over the cloud's.
+
+Auth is an emailed **magic link** (`signInWithOtp`) — no passwords to keep.
+`useSync` then syncs on local write (debounced 2.5 s via `onLocalWrite`), on tab
+focus, on `online`, and on a 60 s poll, plus a manual "Sync now".
+
 ## Not yet done / known simplifications
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
@@ -366,7 +436,11 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
   the open folder nor the sub-tab is remembered across a tab switch. Nothing
   repeats: a task planned for today is a one-off.
 - Calendar is a stub.
-- No sync, no auth, no notifications.
+- Sync resolves conflicts per record, last-write-wins — two devices editing the
+  same routine in the same minute keep whichever wrote last, with no merge and
+  no warning. Timestamps are client clocks, so a badly wrong clock skews that.
+- Sync has no offline queue beyond "retry on the next trigger", and no UI for a
+  record that failed to push. No notifications.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
   Studio + JDK 17). Steps in README.
 
@@ -376,6 +450,7 @@ he's building), **DnD** (the campaign he DMs), **School**, **Job** and
 npm run lint && npm run build
 npm run dev   # then use a mobile viewport in devtools
 ```
+
 Routines — grid renders 7 day rows + routine columns, today highlighted,
 past-unmarked cells red, off-days grey `–`, tap cycles colours and **survives
 reload**, week nav keeps per-week marks and is clamped to the year, editor
@@ -399,6 +474,13 @@ right minute on a weekday with lesson blocks behind it greyed (a straddled one
 only on its passed edge) while the grid lines and row borders stay visible
 throughout, week paging stops at both ends of the semester, and an exception
 renders as a struck-through ghost that can still be tapped to restore.
+
+Sync — needs a `.env` and `supabase/schema.sql` run once. Sign in on device A,
+pick "Use this device's data"; sign in on device B, pick "Replace with the cloud
+copy". Then a mark, a todo and an `absenceLimit` set on A show up on B within
+seconds, a delete on A removes it on B rather than coming back, and both survive
+a reload. With no `.env` the Settings block reads "Not configured" and nothing
+else changes.
 
 Changing `tailwind.config.js` (or `postcss.config.js` / `vite.config.ts`)
 **needs the dev server restarted** — PostCSS caches the config at startup, so new

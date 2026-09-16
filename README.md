@@ -11,10 +11,31 @@ Google Play app later (via Capacitor).
 | --- | --- |
 | Routine tracker (weekly grid) | done (v1) |
 | Timetable (weekly, Mon–Fri) | done (v1) |
-| Todos | stub — next up |
+| Todos | done (v1) |
 | Calendar | stub |
-| Cloud sync | later |
+| Cloud sync (Supabase) | done (v1) — needs a `.env`, see below |
 | Android build (Capacitor) | config only |
+
+## Cloud sync (optional)
+
+Data otherwise lives only in the browser it was entered in, so the same install
+on two machines holds two separate copies. Sync is opt-in and off until
+configured — without it nothing changes.
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor → New query**, paste `supabase/schema.sql`, run it.
+3. Copy **Project Settings → API →** the Project URL and the anon key into a
+   `.env` file (see `.env.example`).
+4. Restart `npm run dev` — Vite reads `.env` at startup.
+
+Then **Settings → Sync**: enter an email, open the magic link it sends, and pick
+a starting point. Do this on the first device with **"Use this device's data"**
+and on every other device with **"Replace with the cloud copy"** — each install
+seeds its own defaults, so merging both would give you two of everything. After
+that it syncs on its own: on save, on focus, and on a slow poll.
+
+The anon key belongs in the client; row level security is what keeps one
+account's rows away from another's.
 
 ## Routine tracker
 
