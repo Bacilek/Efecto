@@ -8,7 +8,14 @@ import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
-import { isCarriedOver, isOnToday, isPlannedAhead, nextDay } from './today'
+import {
+  isCarriedOver,
+  isOnToday,
+  isPlannedAhead,
+  nextDay,
+  planPatch,
+  plannedSinceOf,
+} from './today'
 
 /** `{ todo: null }` opens the sheet for a new todo in `folderId`. */
 type TodoTarget = { todo: Todo | null; folderId: string | null; plannedFor: string | null } | null
@@ -89,12 +96,12 @@ export function TodosScreen() {
    */
   async function togglePlanned(todo: Todo) {
     const on = !!todo.plannedFor && todo.plannedFor <= today
-    await db.todos.update(todo.id, { plannedFor: on ? undefined : today })
+    await db.todos.update(todo.id, planPatch(todo, on ? null : today))
   }
 
   /** "Not today after all" — park the task on tomorrow's list. */
   async function pushToTomorrow(todo: Todo) {
-    await db.todos.update(todo.id, { plannedFor: nextDay(today) })
+    await db.todos.update(todo.id, planPatch(todo, nextDay(today)))
   }
 
   async function saveTodo(draft: TodoDraft) {
@@ -104,7 +111,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         folderId: draft.folderId ?? undefined,
-        plannedFor: draft.plannedFor ?? undefined,
+        ...planPatch(target, draft.plannedFor),
       })
     } else {
       // Order is per folder, so a new todo goes last inside its own tile.
@@ -116,7 +123,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         done: false,
-        plannedFor: draft.plannedFor ?? undefined,
+        ...planPatch(null, draft.plannedFor),
         order: maxOrder + 1,
         ...stamp(),
       })
@@ -707,7 +714,7 @@ function TodoRow({
             {folder && <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>}
             {isCarriedOver(todo, today) && (
               <span className="text-missed">
-                carried over since {formatShort(fromISODate(todo.plannedFor!))}
+                carried over since {formatShort(fromISODate(plannedSinceOf(todo)!))}
               </span>
             )}
             {ahead && <span className="text-brass-dim">{aheadLabel(todo, today)}</span>}

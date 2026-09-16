@@ -139,6 +139,14 @@ export interface Todo {
    * planned quietly disappears unfinished.
    */
   plannedFor?: string
+  /**
+   * `YYYY-MM-DD` the todo *first* landed on Today in its current run — kept so
+   * a task sliding from day to day can say how long it has been sliding.
+   * `plannedFor` moves with every postponement; this one doesn't, and is
+   * cleared only when the task leaves Today altogether. Unset on todos planned
+   * before the field existed, which then fall back to `plannedFor`.
+   */
+  plannedSince?: string
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number

@@ -32,3 +32,24 @@ export function isPlannedAhead(todo: Todo, todayISO: string): boolean {
 export function nextDay(todayISO: string): string {
   return toISODate(addDays(fromISODate(todayISO), 1))
 }
+
+/**
+ * The `plannedFor` / `plannedSince` pair for a change of plan.
+ *
+ * `plannedSince` marks the start of an uninterrupted run on Today: a task that
+ * is already planned keeps the day it started, however often it is pushed
+ * ahead, and one that isn't starts a new run. Taking it off Today ends the run
+ * and clears both.
+ */
+export function planPatch(
+  prev: Todo | null,
+  plannedFor: string | null,
+): Pick<Todo, 'plannedFor' | 'plannedSince'> {
+  if (!plannedFor) return { plannedFor: undefined, plannedSince: undefined }
+  return { plannedFor, plannedSince: prev?.plannedFor ? plannedSinceOf(prev) : plannedFor }
+}
+
+/** The day the task's current run on Today began. */
+export function plannedSinceOf(todo: Todo): string | undefined {
+  return todo.plannedSince ?? todo.plannedFor
+}

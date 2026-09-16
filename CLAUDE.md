@@ -302,6 +302,8 @@ priority, no reminder. "Today" is a plan, not a deadline.
   - `plannedFor` (`YYYY-MM-DD`) is the date it was pulled onto **Today**. The
     todo stays in its folder either way — this only says "I mean to do it
     today", which is why it is a plain date and not a due date.
+  - `plannedSince` is the start of the current run on Today, written alongside
+    it by `planPatch` and used only for the "carried over since" label.
 
 The **All** tab has two views, switched by `openKey` (component state, not a
 route):
@@ -319,8 +321,12 @@ route):
 `features/todos/today.ts` decides what the **Today** tab shows. `isOnToday`
 takes `plannedFor <= today`, not `=== today`: an unfinished task **carries
 over** rather than silently dropping back into its folder overnight, and
-`isCarriedOver` labels it — "carried over since 14.09", naming the day it was
-first planned for, so a task quietly sliding from day to day is visible. A task ticked on an earlier day drops out — it is
+`isCarriedOver` labels it — "carried over since 14.09", naming `plannedSince`:
+the day the task **first** landed on Today in its current run, so a task quietly
+sliding from day to day shows how long it has been sliding. `planPatch` keeps
+that day through every "→ tomorrow" and clears it only when the task leaves
+Today; `plannedSinceOf` falls back to `plannedFor` for todos planned before the
+field existed. A task ticked on an earlier day drops out — it is
 finished, and today's list is about what is still ahead. The list follows the
 folder order, so it reads in the same sequence as the tiles, and each row shows
 which folder it came from.
