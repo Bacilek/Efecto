@@ -345,6 +345,11 @@ Adding:
   back to Someday — the quick gesture, next to the editor's "Plan" row. It is
   lit for `plannedFor <= today` only, so a task pushed ahead reads as unplanned
   for now and the sun pulls it back to today rather than clearing it;
+- the **🗓︎ calendar** opens the platform's own date picker (a transparent
+  `<input type="date">` over the button, in the row and as the editor's "On a
+  date" chip) — any day, not just tomorrow; clearing the field unplans the task.
+  No calendar is drawn by hand: the native one already knows the locale and the
+  first weekday;
 - the **→ arrow** next to it pushes the task to **tomorrow** (`nextDay`) — the
   explicit "not today after all", as opposed to simply leaving it unfinished,
   which carries it over instead. It is hidden (but keeps its slot) on a ticked
@@ -476,7 +481,8 @@ emoji field opens the search panel — typing "book" finds 📚, tapping it fill
 the field and closes the panel.
 
 Todos — Today lists exactly the planned tasks with their folder, the sun button
-adds and removes them, → moves one to tomorrow (it leaves Today and shows
+adds and removes them, → moves one to tomorrow, 🗓︎ opens the date picker and a
+picked day shows on the task (it leaves Today and shows
 "tomorrow" in its folder) and yesterday's unfinished ones stay as "carried
 over"; on All the
 folder tiles wrap instead of overflowing sideways at 360px, tapping one opens

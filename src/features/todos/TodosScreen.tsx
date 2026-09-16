@@ -99,6 +99,11 @@ export function TodosScreen() {
     await db.todos.update(todo.id, planPatch(todo, on ? null : today))
   }
 
+  /** Plan the task for a day of the user's choosing; null takes it off the plan. */
+  async function planOn(todo: Todo, iso: string | null) {
+    await db.todos.update(todo.id, planPatch(todo, iso))
+  }
+
   /** "Not today after all" — park the task on tomorrow's list. */
   async function pushToTomorrow(todo: Todo) {
     await db.todos.update(todo.id, planPatch(todo, nextDay(today)))
@@ -188,6 +193,7 @@ export function TodosScreen() {
           onToggleTodo={(t) => void toggleDone(t)}
           onTogglePlanned={(t) => void togglePlanned(t)}
           onPushToTomorrow={(t) => void pushToTomorrow(t)}
+          onPlanDate={(t, iso) => void planOn(t, iso)}
           onEditTodo={editTodo}
         />
       ) : (
@@ -225,6 +231,7 @@ export function TodosScreen() {
                     onToggle={() => void toggleDone(t)}
                     onTogglePlanned={() => void togglePlanned(t)}
                     onPushToTomorrow={() => void pushToTomorrow(t)}
+                    onPlanDate={(iso) => void planOn(t, iso)}
                     onEdit={() => editTodo(t)}
                   />
                 ))}
@@ -605,6 +612,7 @@ function FolderView({
   onToggleTodo,
   onTogglePlanned,
   onPushToTomorrow,
+  onPlanDate,
   onEditTodo,
 }: {
   section: Section
@@ -614,6 +622,7 @@ function FolderView({
   onToggleTodo: (t: Todo) => void
   onTogglePlanned: (t: Todo) => void
   onPushToTomorrow: (t: Todo) => void
+  onPlanDate: (t: Todo, iso: string | null) => void
   onEditTodo: (t: Todo) => void
 }) {
   const { folder, todos } = section
@@ -656,6 +665,7 @@ function FolderView({
               onToggle={() => onToggleTodo(t)}
               onTogglePlanned={() => onTogglePlanned(t)}
               onPushToTomorrow={() => onPushToTomorrow(t)}
+              onPlanDate={(iso) => onPlanDate(t, iso)}
               onEdit={() => onEditTodo(t)}
             />
           ))}
@@ -672,6 +682,7 @@ function TodoRow({
   onToggle,
   onTogglePlanned,
   onPushToTomorrow,
+  onPlanDate,
   onEdit,
 }: {
   todo: Todo
@@ -681,6 +692,8 @@ function TodoRow({
   onToggle: () => void
   onTogglePlanned: () => void
   onPushToTomorrow: () => void
+  /** null clears the plan — the picker's field was emptied */
+  onPlanDate: (iso: string | null) => void
   onEdit: () => void
 }) {
   // Lit only for a task that is actually on Today — one pushed ahead is
@@ -689,12 +702,12 @@ function TodoRow({
   const ahead = isPlannedAhead(todo, today)
 
   return (
-    <li className="flex items-start gap-2 border-b border-line-soft last:border-b-0">
+    <li className="flex items-start gap-1 border-b border-line-soft last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
         aria-label={todo.done ? 'Mark as not done' : 'Mark as done'}
-        className="flex h-12 w-10 shrink-0 items-center justify-center"
+        className="flex h-12 w-9 shrink-0 items-center justify-center"
       >
         <span
           className={cn(
@@ -722,27 +735,18 @@ function TodoRow({
           </span>
         )}
       </button>
+      {/* The sun is the "do it today" gesture, on every row wherever it is
+          listed; tapping a lit one puts the task back to Someday. Text
+          presentation (U+FE0E) so the glyphs take the palette instead of the
+          platform's own colour emoji. */}
       <button
         type="button"
         onClick={onTogglePlanned}
         aria-label={planned ? 'Remove from today' : 'Do today'}
         title={planned ? 'Remove from today' : 'Do today'}
-        className="flex h-12 w-11 shrink-0 items-center justify-center"
+        className="flex h-12 w-9 shrink-0 items-center justify-center"
       >
-        {/* The sun is the "do it today" gesture, on every row wherever it is
-            listed; tapping a lit one puts the task back to Someday. Text
-            presentation (U+FE0E) so it takes the palette instead of the
-            platform's own colour emoji. */}
-        <span
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full border text-base leading-none transition-colors',
-            planned
-              ? 'border-brass-dim bg-brass-dim/30 text-brass'
-              : 'border-line text-dim hover:text-muted',
-          )}
-        >
-          ☀︎
-        </span>
+        <span className={cn(ACTION_DOT, planned ? ACTION_ON : ACTION_OFF)}>☀︎</span>
       </button>
       {/* "Not today" — one tap parks the task on tomorrow's list. Hidden on a
           ticked task (there is nothing left to postpone), but it still holds
@@ -754,17 +758,48 @@ function TodoRow({
         aria-label="Move to tomorrow"
         title="Move to tomorrow"
         className={cn(
-          'flex h-12 w-11 shrink-0 items-center justify-center',
+          'flex h-12 w-9 shrink-0 items-center justify-center',
           todo.done && 'invisible',
         )}
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-base leading-none text-dim transition-colors hover:text-muted">
-          →
-        </span>
+        <span className={cn(ACTION_DOT, ACTION_OFF)}>→</span>
       </button>
+      {/* Any other day: the platform's own date picker, opened by a transparent
+          <input type="date"> laid over the button — it already knows the phone's
+          locale, first weekday and gestures, so there is no calendar to build.
+          Clearing the field takes the task off the plan. */}
+      <label
+        title="Plan for a date"
+        className="relative flex h-12 w-9 shrink-0 items-center justify-center"
+      >
+        <span className={cn(ACTION_DOT, ahead ? ACTION_ON : ACTION_OFF)}>🗓︎</span>
+        <input
+          type="date"
+          value={todo.plannedFor ?? ''}
+          aria-label="Plan for a date"
+          onClick={(e) => {
+            // Chrome opens the picker from anywhere on the field this way;
+            // elsewhere tapping the field does it by itself.
+            const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }
+            try {
+              el.showPicker?.()
+            } catch {
+              /* refused without a gesture — the plain tap still opens it */
+            }
+          }}
+          onChange={(e) => onPlanDate(e.target.value || null)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
     </li>
   )
 }
+
+/** The three round row actions share one look; only the lit/unlit state differs. */
+const ACTION_DOT =
+  'flex h-7 w-7 items-center justify-center rounded-full border text-sm leading-none transition-colors'
+const ACTION_ON = 'border-brass-dim bg-brass-dim/30 text-brass'
+const ACTION_OFF = 'border-line text-dim hover:text-muted'
 
 /** How far ahead a pushed task sits: tomorrow by name, anything further by date. */
 function aheadLabel(todo: Todo, today: string): string {

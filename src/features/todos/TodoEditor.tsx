@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Todo, TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { todayISO } from '@/lib/date'
+import { formatShort, fromISODate, todayISO } from '@/lib/date'
 
 export interface TodoDraft {
   title: string
@@ -84,13 +84,14 @@ export function TodoEditor({
         />
 
         <label className="mb-1.5 block text-xs text-muted">Plan</label>
-        <div className="mb-3 flex gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           <Chip active={plannedFor === null} onClick={() => setPlannedFor(null)}>
             Someday
           </Chip>
-          <Chip active={plannedFor !== null} onClick={() => setPlannedFor(todayISO())}>
+          <Chip active={plannedFor === todayISO()} onClick={() => setPlannedFor(todayISO())}>
             Today
           </Chip>
+          <DateChip value={plannedFor} onChange={setPlannedFor} />
         </div>
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
@@ -130,6 +131,48 @@ export function TodoEditor({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * The "on a date" pill: the same chip, with the platform's date picker behind
+ * it (a transparent `<input type="date">`), so the sheet never has to draw a
+ * calendar of its own. Active — and labelled with the date — for any day that
+ * isn't today.
+ */
+function DateChip({
+  value,
+  onChange,
+}: {
+  value: string | null
+  onChange: (iso: string | null) => void
+}) {
+  const dated = value !== null && value !== todayISO()
+
+  return (
+    <label
+      className={cn(
+        'relative flex h-9 items-center rounded-md border px-3 text-xs transition-colors',
+        dated ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-dim',
+      )}
+    >
+      {dated ? `🗓︎ ${formatShort(fromISODate(value))}` : '🗓︎ On a date'}
+      <input
+        type="date"
+        value={value ?? ''}
+        aria-label="Plan for a date"
+        onClick={(e) => {
+          const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }
+          try {
+            el.showPicker?.()
+          } catch {
+            /* refused without a gesture — the plain tap still opens it */
+          }
+        }}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
   )
 }
 
