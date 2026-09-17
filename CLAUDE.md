@@ -184,7 +184,7 @@ ticks are separate absolutely-positioned siblings — so the tint is painted as
 its own rectangle _before_ them in the grid, not as a class on the day row
 itself, or it would blot every tick out across the whole row.
 
-- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, createdAt }`
+- `Lesson { id, name, kind, group?, room?, day, start, end, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, coveredDates?, createdAt }`
   - `day` is 0=Mon..4=Fri, `start`/`end` are "HH:MM" inside the window.
 - `recorded` marks a lesson that is filmed, so it doesn't have to be attended in
   person — it matters because of the commute. The block gets a small **camera**
@@ -284,6 +284,16 @@ here. Two sub-tabs (`Tab` in `TodosScreen`):
 - **Today** — the flat list of what I mean to do today, pulled in from the
   folders. The tab label carries the outstanding count.
 - **All** — every task, as the folder tiles below.
+
+**Classes on Today.** Above the planned todos, the Today tab lists today's
+timetable lessons (`ClassList`, picked by `lessonsOn` in
+`features/timetable/cover.ts`: the right weekday, `happensOn` with the semester
+parity, nothing outside the semester, sorted by start). Tapping the box opens
+four choices — Attended / Watched live / Watched recording / Know it already —
+stored per date in `Lesson.coveredDates` (`{ [YYYY-MM-DD]: LessonCover }`), so it
+syncs with the lesson row and needs no new table. Tapping a ticked box clears
+it; `attended` also takes back an absence recorded for that date. Open classes
+count towards the tab badge. Today only — an unticked class does not carry over.
 
 The only structure is **folders** (categories) — there is still no due date, no
 priority, no reminder. "Today" is a plan, not a deadline.
@@ -480,7 +490,9 @@ add/edit/delete works, excused cells leave the `%` alone, and focusing the
 emoji field opens the search panel — typing "book" finds 📚, tapping it fills
 the field and closes the panel.
 
-Todos — Today lists exactly the planned tasks with their folder, the sun button
+Todos — on a semester weekday Today starts with that day's classes, ticking
+one asks how it was covered and shows the answer, and it survives reload; Today
+lists exactly the planned tasks with their folder, the sun button
 adds and removes them, → moves one to tomorrow, 🗓︎ opens the date picker and a
 picked day shows on the task (it leaves Today and shows
 "tomorrow" in its folder) and yesterday's unfinished ones stay as "carried

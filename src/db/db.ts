@@ -45,6 +45,12 @@ export interface Entry {
 export type LessonKind = 'lecture' | 'seminar' | 'lab'
 
 /**
+ * How one occurrence of a lesson was dealt with: sat in the room, watched the
+ * live stream, watched the recording afterwards, or already knew the material.
+ */
+export type LessonCover = 'attended' | 'stream' | 'recording' | 'known'
+
+/**
  * A school timetable entry. The timetable is a weekly template — it repeats
  * every week and carries no dates, unlike routine `Entry` rows.
  */
@@ -93,6 +99,11 @@ export interface Lesson {
    * are ignored, so the allowance resets with the semester bounds.
    */
   absentDates?: string[]
+  /**
+   * Occurrences ticked off on the Todos **Today** tab, keyed by `YYYY-MM-DD`,
+   * with how the material was covered. Unlisted = not ticked yet.
+   */
+  coveredDates?: Record<string, LessonCover>
   createdAt: number
   /** epoch ms of the last local write; the sync engine's conflict tie-break */
   updatedAt: number

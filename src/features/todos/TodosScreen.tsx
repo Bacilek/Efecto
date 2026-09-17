@@ -8,6 +8,8 @@ import { ScreenHeader } from '@/ui/ScreenHeader'
 import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
+import { ClassList } from './ClassList'
+import { coverOn, lessonsOn } from '@/features/timetable/cover'
 import {
   isCarriedOver,
   isOnToday,
@@ -43,6 +45,7 @@ export function TodosScreen() {
 
   const folders = useLiveQuery(() => db.todoFolders.orderBy('order').toArray(), [])
   const todos = useLiveQuery(() => db.todos.toArray(), [])
+  const lessons = useLiveQuery(() => db.lessons.toArray(), [])
 
   const today = todayISO()
 
@@ -57,6 +60,10 @@ export function TodosScreen() {
     () => sortTodos(sections.flatMap((s) => s.todos).filter((t) => isOnToday(t, today))),
     [sections, today],
   )
+
+  // Today's classes from the timetable, ticked off alongside the planned todos.
+  const todayLessons = useMemo(() => lessonsOn(lessons ?? [], today), [lessons, today])
+  const openLessons = todayLessons.filter((l) => !coverOn(l, today)).length
 
   const folderOf = useMemo(() => {
     const m = new Map<string, TodoFolder | null>()
@@ -212,31 +219,38 @@ export function TodosScreen() {
               )
             }
           />
-          <Tabs tab={tab} onChange={setTab} todayCount={todayTodos.filter((t) => !t.done).length} />
+          <Tabs
+            tab={tab}
+            onChange={setTab}
+            todayCount={todayTodos.filter((t) => !t.done).length + openLessons}
+          />
 
           {tab === 'today' ? (
-            todayTodos.length === 0 ? (
-              <EmptyState
-                title="Nothing planned for today."
-                hint={'Tap ☀︎ on any task to pull it in, or add one with "+".'}
-              />
-            ) : (
-              <ul className="px-4 pb-28">
-                {todayTodos.map((t) => (
-                  <TodoRow
-                    key={t.id}
-                    todo={t}
-                    today={today}
-                    folder={folderOf.get(t.id) ?? null}
-                    onToggle={() => void toggleDone(t)}
-                    onTogglePlanned={() => void togglePlanned(t)}
-                    onPushToTomorrow={() => void pushToTomorrow(t)}
-                    onPlanDate={(iso) => void planOn(t, iso)}
-                    onEdit={() => editTodo(t)}
-                  />
-                ))}
-              </ul>
-            )
+            <>
+              {todayLessons.length > 0 && <ClassList lessons={todayLessons} today={today} />}
+              {todayTodos.length === 0 ? (
+                <EmptyState
+                  title="Nothing planned for today."
+                  hint={'Tap ☀︎ on any task to pull it in, or add one with "+".'}
+                />
+              ) : (
+                <ul className="px-4 pb-28">
+                  {todayTodos.map((t) => (
+                    <TodoRow
+                      key={t.id}
+                      todo={t}
+                      today={today}
+                      folder={folderOf.get(t.id) ?? null}
+                      onToggle={() => void toggleDone(t)}
+                      onTogglePlanned={() => void togglePlanned(t)}
+                      onPushToTomorrow={() => void pushToTomorrow(t)}
+                      onPlanDate={(iso) => void planOn(t, iso)}
+                      onEdit={() => editTodo(t)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </>
           ) : sections.length === 0 ? (
             <EmptyState
               title="No folders yet."
