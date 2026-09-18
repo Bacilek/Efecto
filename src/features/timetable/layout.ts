@@ -40,14 +40,14 @@ export const KINDS: LessonKind[] = ['lecture', 'seminar', 'lab']
 /** Short label, matching how the user writes their own timetable. */
 export const KIND_LABELS: Record<LessonKind, string> = {
   lecture: 'L',
-  seminar: 'C',
-  lab: 'LAB',
+  seminar: 'S',
+  lab: 'D',
 }
 
 export const KIND_NAMES: Record<LessonKind, string> = {
   lecture: 'lecture',
   seminar: 'seminar',
-  lab: 'lab',
+  lab: 'demo class',
 }
 
 /**

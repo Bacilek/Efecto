@@ -211,7 +211,9 @@ left }`, counting only dates **inside the current semester** — so moving
 - `weeks` restricts a lesson to odd or even **semester** weeks (the parity
   `SemesterNav` shows), set from the editor's "Repeats" row. A mismatched week
   renders the lesson as a ghost, like any other exception.
-- `kind` is `lecture` | `seminar` | `lab` — the user's L / C / LAB — and picks the
+- `kind` is `lecture` | `seminar` | `lab` — shown as the user's L / S / D
+  (lecture / seminar / demo class; the `lab` id is historical, kept so no stored
+  lesson needs migrating) — and picks the
   block colour (green / yellow / blue, tokens `lecture` / `seminar` / `lab`).
   `KIND_LABELS`, `KIND_NAMES` and `KIND_STYLES` in `layout.ts` are the single
   source for all three.

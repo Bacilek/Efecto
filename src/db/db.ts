@@ -41,7 +41,10 @@ export interface Entry {
   updatedAt: number
 }
 
-/** Lecture / seminar ("cviko") / lab — drives the block's colour. */
+/**
+ * Lecture / seminar / demo class ("dema") — drives the block's colour. The
+ * `lab` id is historical; it is labelled D for demo class everywhere on screen.
+ */
 export type LessonKind = 'lecture' | 'seminar' | 'lab'
 
 /**
