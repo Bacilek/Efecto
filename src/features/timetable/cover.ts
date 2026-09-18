@@ -1,17 +1,8 @@
-import type { Lesson, LessonCover } from '@/db/db'
-import { fromISODate, weekdayIndex, weekParity } from '@/lib/date'
+import type { Lesson } from '@/db/db'
+import { addDays, fromISODate, toISODate, weekdayIndex, weekParity } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 import { happensOn } from './occurrence'
-import { semesterWeek } from './semester'
-
-export const COVERS: LessonCover[] = ['attended', 'stream', 'recording', 'known']
-
-export const COVER_LABELS: Record<LessonCover, string> = {
-  attended: 'Attended',
-  stream: 'Watched live',
-  recording: 'Watched recording',
-  known: 'Know it already',
-}
+import { semesterEnd, semesterStart, semesterWeek } from './semester'
 
 /**
  * The lessons that actually run on `dateISO`, by start time — what the Todos
@@ -29,27 +20,83 @@ export function lessonsOn(lessons: Lesson[], dateISO: string): Lesson[] {
     .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
 }
 
-export function coverOn(lesson: Lesson, dateISO: string): LessonCover | undefined {
-  return lesson.coveredDates?.[dateISO]
+export function coverOn(lesson: Lesson, dateISO: string): boolean {
+  return lesson.coveredDates?.includes(dateISO) ?? false
 }
 
 /**
- * The fields that tick one occurrence off (or clear it, with null). Being there
- * in person contradicts a recorded absence, so `attended` takes that back too.
+ * Ticks an occurrence off, or clears it. Seeing it contradicts a recorded
+ * absence for the same date, so ticking it off takes that back too.
  */
-export function coverPatch(
-  lesson: Lesson,
-  dateISO: string,
-  cover: LessonCover | null,
-): Partial<Lesson> {
-  const covered = { ...lesson.coveredDates }
-  if (cover) covered[dateISO] = cover
-  else delete covered[dateISO]
+export function coverPatch(lesson: Lesson, dateISO: string, covered: boolean): Partial<Lesson> {
+  const dates = lesson.coveredDates ?? []
   const patch: Partial<Lesson> = {
-    coveredDates: Object.keys(covered).length ? covered : undefined,
+    coveredDates: covered
+      ? dates.includes(dateISO)
+        ? dates
+        : [...dates, dateISO]
+      : dates.filter((d) => d !== dateISO),
   }
-  if (cover === 'attended' && lesson.absentDates?.includes(dateISO)) {
+  if (covered && lesson.absentDates?.includes(dateISO)) {
     patch.absentDates = lesson.absentDates.filter((d) => d !== dateISO)
   }
   return patch
+}
+
+/** A tracked seminar: missing it costs one of a limited number of excuses. */
+function isTrackedSeminar(lesson: Lesson): boolean {
+  return lesson.kind === 'seminar' && !!lesson.absenceLimit
+}
+
+export interface LessonOccurrence {
+  lesson: Lesson
+  date: string
+}
+
+/**
+ * Today's classes, plus every earlier lecture or lab nobody covered yet — it
+ * carries over exactly like a planned todo: an open one keeps showing on every
+ * later day until it's marked, while one covered on its own day drops off the
+ * day after, the same as a todo ticked on an earlier day.
+ *
+ * A tracked seminar (one with an `absenceLimit`) never lingers this way — see
+ * `pendingSeminarAbsences`, which settles it straight into a recorded absence
+ * instead, since missing a seminar has a real cost rather than just being
+ * something to catch up on later.
+ */
+export function lessonOccurrences(lessons: Lesson[], todayISO: string): LessonOccurrence[] {
+  const today = fromISODate(todayISO)
+  const rangeEnd = today < semesterEnd() ? today : semesterEnd()
+  const result: LessonOccurrence[] = []
+  for (let d = semesterStart(); d <= rangeEnd; d = addDays(d, 1)) {
+    const iso = toISODate(d)
+    for (const lesson of lessonsOn(lessons, iso)) {
+      if (iso === todayISO) {
+        result.push({ lesson, date: iso })
+      } else if (!coverOn(lesson, iso) && !isTrackedSeminar(lesson)) {
+        result.push({ lesson, date: iso })
+      }
+    }
+  }
+  return result
+}
+
+/**
+ * Past tracked-seminar occurrences nobody covered and that aren't recorded as
+ * an absence yet — the ones `lessonOccurrences` leaves out of Today because
+ * they settle into `absentDates` instead of lingering as an open item.
+ */
+export function pendingSeminarAbsences(lessons: Lesson[], todayISO: string): LessonOccurrence[] {
+  const today = fromISODate(todayISO)
+  const rangeEnd = today < semesterEnd() ? today : semesterEnd()
+  const result: LessonOccurrence[] = []
+  for (let d = semesterStart(); d < today && d <= rangeEnd; d = addDays(d, 1)) {
+    const iso = toISODate(d)
+    for (const lesson of lessonsOn(lessons, iso)) {
+      if (isTrackedSeminar(lesson) && !coverOn(lesson, iso) && !lesson.absentDates?.includes(iso)) {
+        result.push({ lesson, date: iso })
+      }
+    }
+  }
+  return result
 }

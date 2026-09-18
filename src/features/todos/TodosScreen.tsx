@@ -9,10 +9,14 @@ import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
 import { ClassList } from './ClassList'
-import { coverOn, lessonsOn } from '@/features/timetable/cover'
+import { DuesList } from './DuesList'
+import { coverOn, lessonOccurrences, pendingSeminarAbsences } from '@/features/timetable/cover'
+import { toggledAbsence } from '@/features/timetable/absence'
 import {
   isCarriedOver,
+  isDue,
   isOnToday,
+  isOverdue,
   isPlannedAhead,
   nextDay,
   planPatch,
@@ -55,15 +59,30 @@ export function TodosScreen() {
   )
 
   // Today's list follows the folder order, so it reads in the same sequence as
-  // the tiles; ticked tasks sink to the bottom exactly as they do in a folder.
-  const todayTodos = useMemo(
-    () => sortTodos(sections.flatMap((s) => s.todos).filter((t) => isOnToday(t, today))),
-    [sections, today],
-  )
+  // the tiles, and within a folder falls back to the title rather than each
+  // task's own per-folder `order` — flattening straight to that would let two
+  // folders' overlapping order numbers interleave and break the grouping.
+  // Ticked tasks still sink to the bottom exactly as they do in a folder.
+  const todayTodos = useMemo(() => sortToday(sections, today), [sections, today])
 
-  // Today's classes from the timetable, ticked off alongside the planned todos.
-  const todayLessons = useMemo(() => lessonsOn(lessons ?? [], today), [lessons, today])
-  const openLessons = todayLessons.filter((l) => !coverOn(l, today)).length
+  // Todos with a deadline get their own group above the folder-grouped list —
+  // `sortToday` leaves them out of that one so they don't show twice.
+  const dueTodos = useMemo(() => sortDues(todos ?? [], today), [todos, today])
+
+  // Today's classes from the timetable plus any earlier one still uncovered,
+  // ticked off alongside the planned todos.
+  const classOccurrences = useMemo(() => lessonOccurrences(lessons ?? [], today), [lessons, today])
+  const openLessons = classOccurrences.filter((o) => !coverOn(o.lesson, o.date)).length
+
+  // A tracked seminar left uncovered once its day has passed doesn't linger on
+  // Today — it settles straight into a recorded absence instead.
+  useEffect(() => {
+    if (!lessons) return
+    const pending = pendingSeminarAbsences(lessons, today)
+    for (const { lesson, date } of pending) {
+      void db.lessons.update(lesson.id, toggledAbsence(lesson, date))
+    }
+  }, [lessons, today])
 
   const folderOf = useMemo(() => {
     const m = new Map<string, TodoFolder | null>()
@@ -123,6 +142,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         folderId: draft.folderId ?? undefined,
+        dueBy: draft.dueBy ?? undefined,
         ...planPatch(target, draft.plannedFor),
       })
     } else {
@@ -135,6 +155,7 @@ export function TodosScreen() {
         title: draft.title,
         note: draft.note || undefined,
         done: false,
+        dueBy: draft.dueBy ?? undefined,
         ...planPatch(null, draft.plannedFor),
         order: maxOrder + 1,
         ...stamp(),
@@ -222,12 +243,25 @@ export function TodosScreen() {
           <Tabs
             tab={tab}
             onChange={setTab}
-            todayCount={todayTodos.filter((t) => !t.done).length + openLessons}
+            todayCount={
+              todayTodos.filter((t) => !t.done).length +
+              dueTodos.filter((t) => !t.done).length +
+              openLessons
+            }
           />
 
           {tab === 'today' ? (
             <>
-              {todayLessons.length > 0 && <ClassList lessons={todayLessons} today={today} />}
+              {classOccurrences.length > 0 && <ClassList occurrences={classOccurrences} />}
+              {dueTodos.length > 0 && (
+                <DuesList
+                  todos={dueTodos}
+                  today={today}
+                  folderOf={folderOf}
+                  onToggle={(t) => void toggleDone(t)}
+                  onEdit={editTodo}
+                />
+              )}
               {todayTodos.length === 0 ? (
                 <EmptyState
                   title="Nothing planned for today."
@@ -315,6 +349,37 @@ function sortTodos(todos: Todo[]): Todo[] {
     if (a.done) return (b.doneAt ?? 0) - (a.doneAt ?? 0)
     return a.order - b.order
   })
+}
+
+/**
+ * Today's todos, grouped by folder (in folder order) and alphabetical within
+ * one — sorting the flattened list by each task's own per-folder `order`
+ * would let two folders' overlapping numbers interleave, which loses the
+ * grouping. Ticked ones still sink to the bottom of their folder, newest
+ * first, same as `sortTodos`. A due todo lives in `DuesList` instead, so it's
+ * excluded here to avoid showing twice.
+ */
+function sortToday(sections: Section[], today: string): Todo[] {
+  return sections.flatMap((s) =>
+    s.todos
+      .filter((t) => isOnToday(t, today) && !t.dueBy)
+      .sort((a, b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1
+        if (a.done) return (b.doneAt ?? 0) - (a.doneAt ?? 0)
+        return a.title.localeCompare(b.title)
+      }),
+  )
+}
+
+/** Due todos, soonest deadline first; ticked ones (today only) sink to the bottom. */
+function sortDues(todos: Todo[], today: string): Todo[] {
+  return todos
+    .filter((t) => isDue(t, today))
+    .sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1
+      if (a.done) return (b.doneAt ?? 0) - (a.doneAt ?? 0)
+      return a.dueBy!.localeCompare(b.dueBy!)
+    })
 }
 
 function folderLabel(folder: TodoFolder | null): string {
@@ -736,7 +801,7 @@ function TodoRow({
         <span className={cn('block', todo.done ? 'text-dim line-through' : 'text-parchment')}>
           {todo.title}
         </span>
-        {(todo.note || folder || ahead || isCarriedOver(todo, today)) && (
+        {(todo.note || folder || ahead || isCarriedOver(todo, today) || todo.dueBy) && (
           <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
             {folder && <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>}
             {isCarriedOver(todo, today) && (
@@ -745,6 +810,12 @@ function TodoRow({
               </span>
             )}
             {ahead && <span className="text-brass-dim">{aheadLabel(todo, today)}</span>}
+            {todo.dueBy && (
+              <span className={isOverdue(todo, today) ? 'text-missed' : 'text-brass-dim'}>
+                {isOverdue(todo, today) ? 'overdue since ' : 'due '}
+                {formatShort(fromISODate(todo.dueBy))}
+              </span>
+            )}
             {todo.note && <span>{todo.note}</span>}
           </span>
         )}

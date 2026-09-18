@@ -53,3 +53,21 @@ export function planPatch(
 export function plannedSinceOf(todo: Todo): string | undefined {
   return todo.plannedSince ?? todo.plannedFor
 }
+
+/**
+ * Is the todo in the Today tab's **Dues** group? Unlike `isOnToday`, a due
+ * task shows from the moment its deadline is set — there is nothing to wait
+ * for — all the way through the deadline and past it as overdue, until it's
+ * ticked. A ticked one still shows on the day it was ticked, same as a
+ * planned todo, then drops off the day after.
+ */
+export function isDue(todo: Todo, todayISO: string): boolean {
+  if (!todo.dueBy) return false
+  if (!todo.done) return true
+  return todo.doneAt !== undefined && toISODate(new Date(todo.doneAt)) === todayISO
+}
+
+/** A due task whose deadline has passed and is still open. */
+export function isOverdue(todo: Todo, todayISO: string): boolean {
+  return !todo.done && !!todo.dueBy && todo.dueBy < todayISO
+}

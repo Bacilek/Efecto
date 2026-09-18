@@ -48,12 +48,6 @@ export interface Entry {
 export type LessonKind = 'lecture' | 'seminar' | 'lab'
 
 /**
- * How one occurrence of a lesson was dealt with: sat in the room, watched the
- * live stream, watched the recording afterwards, or already knew the material.
- */
-export type LessonCover = 'attended' | 'stream' | 'recording' | 'known'
-
-/**
  * A school timetable entry. The timetable is a weekly template — it repeats
  * every week and carries no dates, unlike routine `Entry` rows.
  */
@@ -103,10 +97,10 @@ export interface Lesson {
    */
   absentDates?: string[]
   /**
-   * Occurrences ticked off on the Todos **Today** tab, keyed by `YYYY-MM-DD`,
-   * with how the material was covered. Unlisted = not ticked yet.
+   * Dates (`YYYY-MM-DD`) ticked off on the Todos **Today** tab — the material
+   * was seen, one way or another. Unlisted = not ticked yet.
    */
-  coveredDates?: Record<string, LessonCover>
+  coveredDates?: string[]
   createdAt: number
   /** epoch ms of the last local write; the sync engine's conflict tie-break */
   updatedAt: number
@@ -161,6 +155,13 @@ export interface Todo {
    * before the field existed, which then fall back to `plannedFor`.
    */
   plannedSince?: string
+  /**
+   * `YYYY-MM-DD` deadline — the opposite of `plannedFor`. A due todo shows on
+   * the Today tab's own "Dues" group every day from the moment it's set
+   * through its deadline (and after, as overdue), rather than waiting until a
+   * particular day the way a planned one does.
+   */
+  dueBy?: string
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number

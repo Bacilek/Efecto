@@ -10,6 +10,8 @@ export interface TodoDraft {
   folderId: string | null
   /** `YYYY-MM-DD` it sits on the Today tab under; null = not planned */
   plannedFor: string | null
+  /** `YYYY-MM-DD` deadline; null = no due date */
+  dueBy: string | null
 }
 
 export function TodoEditor({
@@ -36,12 +38,14 @@ export function TodoEditor({
   const [note, setNote] = useState('')
   const [folderId, setFolderId] = useState<string | null>(null)
   const [plannedFor, setPlannedFor] = useState<string | null>(null)
+  const [dueBy, setDueBy] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(todo?.title ?? '')
     setNote(todo?.note ?? '')
     setFolderId(todo ? (todo.folderId ?? null) : initialFolderId)
     setPlannedFor(todo ? (todo.plannedFor ?? null) : initialPlannedFor)
+    setDueBy(todo?.dueBy ?? null)
   }, [todo, initialFolderId, initialPlannedFor])
 
   // With a catch-all folder around, "Unsorted" is only worth offering while
@@ -51,7 +55,7 @@ export function TodoEditor({
   function submit() {
     const trimmed = title.trim()
     if (!trimmed) return
-    onSave({ title: trimmed, note: note.trim(), folderId, plannedFor })
+    onSave({ title: trimmed, note: note.trim(), folderId, plannedFor, dueBy })
   }
 
   return (
@@ -91,7 +95,26 @@ export function TodoEditor({
           <Chip active={plannedFor === todayISO()} onClick={() => setPlannedFor(todayISO())}>
             Today
           </Chip>
-          <DateChip value={plannedFor} onChange={setPlannedFor} />
+          <DateChip
+            value={plannedFor}
+            onChange={setPlannedFor}
+            excludeToday
+            ariaLabel="Plan for a date"
+          />
+        </div>
+
+        <label className="mb-1.5 block text-xs text-muted">Due</label>
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <Chip active={dueBy === null} onClick={() => setDueBy(null)}>
+            No deadline
+          </Chip>
+          <DateChip
+            value={dueBy}
+            onChange={setDueBy}
+            icon="⏰"
+            label="Due date"
+            ariaLabel="Due date"
+          />
         </div>
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
@@ -137,17 +160,26 @@ export function TodoEditor({
 /**
  * The "on a date" pill: the same chip, with the platform's date picker behind
  * it (a transparent `<input type="date">`), so the sheet never has to draw a
- * calendar of its own. Active — and labelled with the date — for any day that
- * isn't today.
+ * calendar of its own. Active — and labelled with the date — once a date is
+ * picked; `excludeToday` keeps it looking unpicked for today specifically,
+ * for a row that already has its own dedicated "Today" chip alongside it.
  */
 function DateChip({
   value,
   onChange,
+  icon = '🗓︎',
+  label = 'On a date',
+  ariaLabel,
+  excludeToday,
 }: {
   value: string | null
   onChange: (iso: string | null) => void
+  icon?: string
+  label?: string
+  ariaLabel: string
+  excludeToday?: boolean
 }) {
-  const dated = value !== null && value !== todayISO()
+  const dated = value !== null && (!excludeToday || value !== todayISO())
 
   return (
     <label
@@ -156,11 +188,11 @@ function DateChip({
         dated ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-dim',
       )}
     >
-      {dated ? `🗓︎ ${formatShort(fromISODate(value))}` : '🗓︎ On a date'}
+      {dated ? `${icon} ${formatShort(fromISODate(value))}` : `${icon} ${label}`}
       <input
         type="date"
         value={value ?? ''}
-        aria-label="Plan for a date"
+        aria-label={ariaLabel}
         onClick={(e) => {
           const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }
           try {
