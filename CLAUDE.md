@@ -287,24 +287,34 @@ here. Two sub-tabs (`Tab` in `TodosScreen`):
   folders. The tab label carries the outstanding count.
 - **All** — every task, as the folder tiles below.
 
-**Classes on Today.** Above the planned todos, the Today tab lists today's
-timetable lessons (`ClassList`, picked by `lessonsOn` in
-`features/timetable/cover.ts`: the right weekday, `happensOn` with the semester
-parity, nothing outside the semester, sorted by start). Tapping the box opens
-four choices — Attended / Watched live / Watched recording / Know it already —
-stored per date in `Lesson.coveredDates` (`{ [YYYY-MM-DD]: LessonCover }`), so it
-syncs with the lesson row and needs no new table. Tapping a ticked box clears
-it; `attended` also takes back an absence recorded for that date. Open classes
-count towards the tab badge. Today only — an unticked class does not carry over.
+**Classes on Today.** Above the planned todos, the Today tab lists lesson
+occurrences (`ClassList`, fed by `lessonOccurrences` in
+`features/timetable/cover.ts`): today's lessons (`lessonsOn` — the right
+weekday, `happensOn` with the semester parity, nothing outside the semester),
+plus every earlier lecture or lab nobody ticked off yet — it **carries over**
+exactly like a planned todo, showing on every later day until marked, and
+dropping off for good the day after it's ticked. One tap ticks a class off,
+seen any way — there's no picker, just done/not done — stored as a plain date
+list in `Lesson.coveredDates` (`string[]`), so it syncs with the lesson row and
+needs no new table. Ticking also takes back an absence recorded for that date.
+A **tracked seminar** (`kind === 'seminar'` with an `absenceLimit`) never
+lingers this way: `pendingSeminarAbsences` finds one left uncovered once its
+day has passed and a `useEffect` in `TodosScreen` settles it straight into
+`Lesson.absentDates` instead — missing a seminar has a real cost (one of a
+limited excuse count), not just something to catch up on later. Open classes
+(including carried-over ones) count towards the tab badge. Within the
+open/done split, classes sort by date (oldest first), then subject name, then
+kind (**L**ecture → **S**eminar → **D**emo/lab) — so a run of leftovers from
+one subject reads `#L1, #S1, #L2, #S2` rather than jumping between subjects.
 
-The only structure is **folders** (categories) — there is still no due date, no
-priority, no reminder. "Today" is a plan, not a deadline.
+The only structure is **folders** (categories) — there is no priority, no
+reminder, and mostly no due date (see **Dues** below, the one exception).
 
 - `TodoFolder { id, name, emoji?, order, isDefault?, createdAt }`
   - `isDefault` marks the **catch-all** folder a new todo lands in — the seeded
     "Others". At most one folder carries it; if it is edited away the first
     folder stands in.
-- `Todo { id, folderId?, title, note?, done, doneAt?, plannedFor?, order, createdAt }`
+- `Todo { id, folderId?, title, note?, done, doneAt?, plannedFor?, plannedSince?, dueBy?, order, createdAt }`
   - `folderId` unset = the **"Unsorted"** bucket, a section rendered only when
     it actually holds something. Since "Others" exists it is a safety net rather
     than a destination: the editor only offers "Unsorted" when there are no
@@ -316,6 +326,10 @@ priority, no reminder. "Today" is a plan, not a deadline.
     today", which is why it is a plain date and not a due date.
   - `plannedSince` is the start of the current run on Today, written alongside
     it by `planPatch` and used only for the "carried over since" label.
+  - `dueBy` (`YYYY-MM-DD`) is the one real deadline in Todos — see **Dues**
+    below. It is deliberately a separate field from `plannedFor`: the two read
+    in opposite directions (a plan waits until its day; a deadline shows right
+    away and keeps showing).
 
 The **All** tab has two views, switched by `openKey` (component state, not a
 route):
@@ -339,9 +353,27 @@ sliding from day to day shows how long it has been sliding. `planPatch` keeps
 that day through every "→ tomorrow" and clears it only when the task leaves
 Today; `plannedSinceOf` falls back to `plannedFor` for todos planned before the
 field existed. A task ticked on an earlier day drops out — it is
-finished, and today's list is about what is still ahead. The list follows the
-folder order, so it reads in the same sequence as the tiles, and each row shows
-which folder it came from.
+finished, and today's list is about what is still ahead. `sortToday` groups the
+list by folder (in folder order, so it reads in the same sequence as the
+tiles) and falls back to the task's **title, alphabetically** within one —
+not each task's own per-folder `order`, since two folders' order numbers can
+overlap and interleaving by that would break the grouping. Each row shows
+which folder it came from. A due todo (see **Dues** below) is left out of this
+list — it has its own group instead, so it never shows twice.
+
+**Dues.** A todo with `dueBy` set gets its own group on Today, `DuesList`,
+between Classes and the folder-grouped list — for a real deadline ("hand this
+in by Friday") rather than a plan for a particular day. `isDue` (also in
+`today.ts`) shows it every day from the moment the deadline is set, through the
+due day and past it as overdue, until it's ticked — the opposite direction from
+`isOnToday`, which waits until `plannedFor` arrives. `isOverdue` flags a still-open
+one whose `dueBy` has passed, styled like `isCarriedOver`'s label but reading
+"overdue since" instead. Sorted soonest-deadline-first; ticked ones sink to the
+bottom the same day, then drop off like any other Today row the day after. Set
+from `TodoEditor`'s own "Due" row (a "No deadline" chip plus a date chip,
+mirroring "Plan"); a due todo still lives in its folder exactly like a planned
+one, and `TodoRow` shows "due 27.09" / "overdue since 20.09" wherever else it's
+listed.
 
 Inside a folder, `sortTodos` keeps open tasks in their manual `order` and
 **sinks ticked ones to the bottom**, newest tick first, struck through and dim —
