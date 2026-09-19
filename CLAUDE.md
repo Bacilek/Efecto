@@ -526,6 +526,9 @@ back. README has the steps.
 ## Not yet done / known simplifications
 
 - `archived` flag exists but nothing sets it (delete is hard-delete).
+- The Settings backup is a v3 file (routines, entries, lessons, folders, todos).
+  A v2 file predates todos, which is not the same as holding none, so importing
+  one leaves the todo tables alone rather than wiping them.
 - Timetable: colour comes from `kind` only (no per-subject colours) and there is
   no teacher field. `recorded` and `absenceLimit` are set by hand in the editor
   — the seed sets neither, and nothing warns when the allowance runs out beyond

@@ -13,6 +13,10 @@ interface Backup {
   entries: unknown[]
   /** added in backup v2; absent in older files */
   lessons?: unknown[]
+  /** added in backup v3; absent in older files */
+  todoFolders?: unknown[]
+  /** added in backup v3; absent in older files */
+  todos?: unknown[]
 }
 
 export function SettingsScreen() {
@@ -20,18 +24,22 @@ export function SettingsScreen() {
   const [msg, setMsg] = useState<string | null>(null)
 
   async function exportData() {
-    const [routines, entries, lessons] = await Promise.all([
+    const [routines, entries, lessons, todoFolders, todos] = await Promise.all([
       db.routines.toArray(),
       db.entries.toArray(),
       db.lessons.toArray(),
+      db.todoFolders.toArray(),
+      db.todos.toArray(),
     ])
     const backup: Backup = {
       app: 'efecto',
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       routines,
       entries,
       lessons,
+      todoFolders,
+      todos,
     }
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -46,17 +54,32 @@ export function SettingsScreen() {
     try {
       const parsed = JSON.parse(await file.text()) as Backup
       if (parsed.app !== 'efecto') throw new Error('Not a valid Efecto backup.')
-      await db.transaction('rw', db.routines, db.entries, db.lessons, async () => {
-        await db.routines.clear()
-        await db.entries.clear()
-        await db.lessons.clear()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.routines.bulkAdd(parsed.routines as any[])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.entries.bulkAdd(parsed.entries as any[])
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.lessons.bulkAdd((parsed.lessons ?? []) as any[])
-      })
+      // A v2 file carries no todos at all, which is not the same as carrying an
+      // empty list — restoring one must not wipe the folders it never knew
+      // about, so those tables are left alone unless the file speaks to them.
+      const restoresTodos = !!parsed.todoFolders || !!parsed.todos
+      await db.transaction(
+        'rw',
+        [db.routines, db.entries, db.lessons, db.todoFolders, db.todos],
+        async () => {
+          await db.routines.clear()
+          await db.entries.clear()
+          await db.lessons.clear()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.routines.bulkAdd(parsed.routines as any[])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.entries.bulkAdd(parsed.entries as any[])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.lessons.bulkAdd((parsed.lessons ?? []) as any[])
+          if (!restoresTodos) return
+          await db.todoFolders.clear()
+          await db.todos.clear()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.todoFolders.bulkAdd((parsed.todoFolders ?? []) as any[])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await db.todos.bulkAdd((parsed.todos ?? []) as any[])
+        },
+      )
       // The import replaced everything wholesale, so this device no longer
       // shares a history with the account — the next sign-in asks which copy
       // wins rather than pushing the restored rows over the cloud's.
