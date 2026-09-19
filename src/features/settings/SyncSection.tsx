@@ -15,7 +15,7 @@ export function SyncSection() {
       <Panel title="Sync" desc="Not configured on this build — data stays on this device.">
         <p className="text-xs text-dim">
           Add <code className="text-muted">VITE_SUPABASE_URL</code> and{' '}
-          <code className="text-muted">VITE_SUPABASE_ANON_KEY</code> to a{' '}
+          <code className="text-muted">VITE_SUPABASE_PUBLISHABLE_KEY</code> to a{' '}
           <code className="text-muted">.env</code> file and rebuild. See{' '}
           <code className="text-muted">supabase/schema.sql</code>.
         </p>

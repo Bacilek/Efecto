@@ -53,6 +53,13 @@ export async function syncNow(): Promise<SyncResult> {
 
 async function push(userId: string): Promise<number> {
   const since = (await metaGet<number>(PUSH_CURSOR)) ?? 0
+  // The new cursor is taken *before* the rows are read, not after the upsert
+  // returns: a write made during the round trip would otherwise land below a
+  // cursor stamped afterwards and never be offered again. One millisecond back
+  // covers a write landing in the very millisecond of the read, which may or
+  // may not have made it into the payload — re-sending a row costs an
+  // idempotent upsert, losing one costs the edit.
+  const cursor = Date.now() - 1
   const payload: Array<Record<string, unknown>> = []
 
   for (const kind of SYNCED_TABLES) {
@@ -92,8 +99,8 @@ async function push(userId: string): Promise<number> {
 
   // The server row (deleted = true) is the durable tombstone from here on, so
   // the local copy has done its job and would only grow forever.
-  await db.tombstones.where('deletedAt').belowOrEqual(Date.now()).delete()
-  await metaSet(PUSH_CURSOR, Date.now())
+  await db.tombstones.where('deletedAt').belowOrEqual(cursor).delete()
+  await metaSet(PUSH_CURSOR, cursor)
   return payload.length
 }
 
@@ -171,6 +178,50 @@ export async function needsLinking(userId: string): Promise<boolean> {
 }
 
 export type LinkDirection = 'upload' | 'download'
+
+/**
+ * Which way the first sync on this device should go, or null when only its
+ * owner can say.
+ *
+ * The question exists because every install seeds its own routines, timetable
+ * and folders under fresh ids, so a blind merge gives two of everything. But
+ * that only makes it a *question* when both sides hold real work. An empty
+ * account has nothing to lose, and a device still carrying nothing but its
+ * seeds has nothing worth keeping — between them those are the two cases that
+ * actually happen (a first device, and every device added afterwards, phone
+ * included). Only a device that was used offline against an account that was
+ * also used elsewhere has to be asked, and that one is asked rather than
+ * guessed at, because either answer throws work away.
+ */
+export async function autoLinkDirection(userId: string): Promise<LinkDirection | null> {
+  if (!supabase) return null
+  const { count, error } = await supabase
+    .from('records')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  // A failed count must not be read as "the cloud is empty" — that would upload
+  // over an account whose rows simply couldn't be counted.
+  if (error) throw new Error(`Sync failed: ${error.message}`)
+  if (!count) return 'upload'
+  return (await localIsPristine()) ? 'download' : null
+}
+
+/**
+ * Whether this device holds nothing but what `db/seed.ts` put there: no marks,
+ * no todos, no deletes, and not one seeded row edited since. `updatedAt` equals
+ * `createdAt` exactly until the first write touches a row, which is what makes
+ * "untouched" answerable at all.
+ */
+async function localIsPristine(): Promise<boolean> {
+  if (await db.tombstones.count()) return false
+  if (await db.entries.count()) return false
+  if (await db.todos.count()) return false
+  for (const kind of ['routines', 'lessons', 'todoFolders'] as const) {
+    const rows = await db.table<{ createdAt?: number; updatedAt: number }>(kind).toArray()
+    if (rows.some((r) => r.updatedAt !== r.createdAt)) return false
+  }
+  return true
+}
 
 /**
  * Reconcile this device with an account for the first time.

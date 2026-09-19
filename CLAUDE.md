@@ -474,18 +474,54 @@ so it isn't sent straight back — clamped to this device's own clock, so a devi
 running ahead can't push the cursor into the future and swallow edits made
 meanwhile.
 
-**The first sync on a device picks a direction** (`needsLinking` / `linkDevice`,
-the "Choose a starting point" panel). Every install seeds its own default
-routines, timetable and folders under locally generated ids, so a second device
-that merely merged would end up with two of everything. `upload` keeps this
-device's data, `download` discards it for the cloud's; afterwards it is an
-ordinary two-way merge. Signing out, importing a backup or resetting all clear
-the cursors, so the next sign-in asks again rather than pushing a restored copy
-over the cloud's.
+**The first sync on a device picks a direction** (`needsLinking` / `linkDevice`).
+Every install seeds its own default routines, timetable and folders under
+locally generated ids, so a second device that merely merged would end up with
+two of everything. `upload` keeps this device's data, `download` discards it for
+the cloud's; afterwards it is an ordinary two-way merge. Signing out, importing
+a backup or resetting all clear the cursors, so the next sign-in decides again
+rather than pushing a restored copy over the cloud's.
+
+`autoLinkDirection` settles that by itself wherever it isn't a real choice — an
+empty account has nothing to lose (`upload`), and a device holding nothing but
+its seeds has nothing worth keeping (`download`, which is every device added
+later, phone included). "Pristine" is answerable because `updatedAt` equals
+`createdAt` exactly until something writes to a row, so an untouched seed is
+distinguishable from an edited one; no marks, no todos and no tombstones are
+the rest of the test. Only a device used offline against an account that was
+also used elsewhere still gets the **"Choose a starting point"** panel, since
+either answer there throws work away. A failed remote count throws rather than
+reading as "the cloud is empty", which would upload over it.
 
 Auth is an emailed **magic link** (`signInWithOtp`) — no passwords to keep.
 `useSync` then syncs on local write (debounced 2.5 s via `onLocalWrite`), on tab
-focus, on `online`, and on a 60 s poll, plus a manual "Sync now".
+focus, on `online`, on a **realtime** nudge, and on a 60 s poll, plus a manual
+"Sync now".
+
+The realtime channel subscribes to `records` filtered by `user_id`, so the
+server says when another device wrote and a change lands in about a second
+instead of waiting out the poll. It is only a nudge — the pull still goes
+through the `synced_at` cursor, so a missed or duplicated event costs nothing
+and the payload never has to be trusted. Rows this device pushed echo back as
+events too; that costs one round trip which applies nothing, because an echo
+never compares newer than what is already here. `postgres_changes` honours RLS,
+and `schema.sql` adds the table to the `supabase_realtime` publication (plus
+`replica identity full`, or a delete would arrive without its key). The poll
+stays as the backstop for a trigger dropped because a sync was already running,
+and for any stretch where the socket is down.
+
+The push cursor is stamped **before** the dirty rows are read, not after the
+upsert returns (`Date.now() - 1`): a write made during the round trip would
+otherwise land below a cursor stamped afterwards and never be offered again.
+Re-sending a row costs an idempotent upsert; losing one costs the edit.
+
+**Deployment.** Sync carries data between browsers, not between addresses —
+`localhost:5173` on two machines is two origins, hence two databases and two
+sign-ins, and a phone can reach neither. `vercel.json` (Vite preset + an SPA
+rewrite) is there so the app has one URL every device installs as a PWA; the
+`VITE_` keys are build-time, so changing one needs a redeploy, and Supabase's
+**Redirect URLs** have to list the deployed origin or the magic link won't come
+back. README has the steps.
 
 ## Not yet done / known simplifications
 
@@ -507,6 +543,9 @@ focus, on `online`, and on a 60 s poll, plus a manual "Sync now".
   no warning. Timestamps are client clocks, so a badly wrong clock skews that.
 - Sync has no offline queue beyond "retry on the next trigger", and no UI for a
   record that failed to push. No notifications.
+- Realtime is a nudge, not a transport: a device that is closed still catches up
+  only when it next opens. Nothing tells you a *different* device changed the
+  thing you are looking at right now.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
   Studio + JDK 17). Steps in README.
 

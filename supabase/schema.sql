@@ -53,3 +53,20 @@ create policy "own records" on public.records
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Realtime: let the server tell a signed-in device that another one wrote,
+-- instead of every device asking on a timer. `postgres_changes` honours the
+-- policy above, so a client is only ever told about its own rows -- and the
+-- app still pulls through the ordinary cursor afterwards, treating the event
+-- as a nudge rather than as data.
+do $$
+begin
+  alter publication supabase_realtime add table public.records;
+exception
+  when duplicate_object then null;  -- already published; re-running is harmless
+end
+$$;
+
+-- A delete arrives with nothing but its key unless the whole old row is
+-- replicated, and the key is what the nudge needs.
+alter table public.records replica identity full;

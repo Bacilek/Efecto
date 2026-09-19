@@ -3,17 +3,23 @@ import type { Session } from '@supabase/supabase-js'
 import { onLocalWrite } from '@/db/db'
 import { supabase, syncConfigured } from './supabase'
 import {
+  autoLinkDirection,
   lastSyncedAt,
   linkDevice,
   needsLinking,
   resetSyncState,
   syncNow,
   type LinkDirection,
+  type SyncResult,
 } from './engine'
 
 /** A local write settles for this long before it is worth a round trip. */
 const DEBOUNCE_MS = 2500
-/** Backstop for changes made on the other device while this one sits idle. */
+/**
+ * Backstop only. Realtime is what actually carries a change from one device to
+ * the next; this catches the rare trigger dropped because a sync was already in
+ * flight, and any stretch where the socket is down.
+ */
 const POLL_MS = 60_000
 
 export type SyncPhase = 'off' | 'signed-out' | 'needs-link' | 'idle' | 'syncing' | 'error'
@@ -49,33 +55,43 @@ export function useSync(): SyncState {
     void lastSyncedAt().then((t) => setLastAt(t ?? null))
   }, [session])
 
-  const run = useCallback(async () => {
-    if (!supabase || running.current) return
-    const user = session?.user
-    if (!user) return
-    if (await needsLinking(user.id)) {
-      setPhase('needs-link')
-      return
-    }
+  /**
+   * The phase and error bookkeeping a sync and a first link both need. A null
+   * result means the work stopped to ask which copy wins.
+   */
+  const guarded = useCallback(async (work: () => Promise<SyncResult | null>) => {
     running.current = true
     setPhase('syncing')
     setError(null)
     try {
-      const res = await syncNow()
-      setLastAt(res.at)
-      setPhase('idle')
+      const res = await work()
+      if (res) setLastAt(res.at)
+      setPhase(res ? 'idle' : 'needs-link')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sync failed.')
       setPhase('error')
     } finally {
       running.current = false
     }
-  }, [session])
+  }, [])
+
+  const run = useCallback(async () => {
+    if (!supabase || running.current) return
+    const user = session?.user
+    if (!user) return
+    await guarded(async () => {
+      if (!(await needsLinking(user.id))) return syncNow()
+      // A device added to an account settles its own direction wherever that
+      // is not a real choice — which is every device but the awkward one.
+      const direction = await autoLinkDirection(user.id)
+      return direction ? linkDevice(user.id, direction) : null
+    })
+  }, [session, guarded])
 
   // Sign in, come back to the tab, save something, or just sit there — each is
   // a reason to reconcile, and none of them should need a button.
   useEffect(() => {
-    if (!session) {
+    if (!session || !supabase) {
       setPhase(syncConfigured ? 'signed-out' : 'off')
       return
     }
@@ -94,12 +110,31 @@ export function useSync(): SyncState {
     window.addEventListener('online', onVisible)
     const poll = setInterval(() => void run(), POLL_MS)
 
+    // The server says when another device wrote, so a change lands here in
+    // about a second instead of waiting out the poll. The rows this device
+    // pushed come back as events too; that costs one round trip that applies
+    // nothing, because an echo never compares newer than what is already here.
+    const channel = supabase
+      .channel(`records:${session.user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'records',
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        schedule,
+      )
+      .subscribe()
+
     return () => {
       clearTimeout(timer)
       clearInterval(poll)
       stopWatching()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onVisible)
+      void supabase?.removeChannel(channel)
     }
   }, [session, run])
 
@@ -107,21 +142,9 @@ export function useSync(): SyncState {
     async (direction: LinkDirection) => {
       const user = session?.user
       if (!user) return
-      running.current = true
-      setPhase('syncing')
-      setError(null)
-      try {
-        const res = await linkDevice(user.id, direction)
-        setLastAt(res.at)
-        setPhase('idle')
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Sync failed.')
-        setPhase('error')
-      } finally {
-        running.current = false
-      }
+      await guarded(() => linkDevice(user.id, direction))
     },
-    [session],
+    [session, guarded],
   )
 
   const signIn = useCallback(async (email: string) => {

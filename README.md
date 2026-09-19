@@ -29,11 +29,36 @@ configured — without it nothing changes.
    Not the secret key — see below.
 4. Restart `npm run dev` — Vite reads `.env` at startup.
 
-Then **Settings → Sync**: enter an email, open the magic link it sends, and pick
-a starting point. Do this on the first device with **"Use this device's data"**
-and on every other device with **"Replace with the cloud copy"** — each install
-seeds its own defaults, so merging both would give you two of everything. After
-that it syncs on its own: on save, on focus, and on a slow poll.
+Then **Settings → Sync**: enter an email and open the magic link it sends. That
+is normally the whole setup — a device settles its own direction: an empty
+account takes this device's data, and a device still carrying nothing but its
+seeds takes the cloud's. It stops to ask only when both sides hold real work,
+because either answer then throws some of it away.
+
+After that it syncs on its own: on save, on focus, on `online`, on a Supabase
+realtime nudge when another device writes (about a second), and on a slow poll
+behind all of it.
+
+## Deploying (one address for every device)
+
+Sync carries data between browsers, not between addresses: `localhost:5173` on
+two machines is two origins, so two databases and two sign-ins — and a phone
+cannot reach either. One deployed URL, installed as a PWA on each device, is
+what makes "change it here, see it there" true.
+
+`vercel.json` is in the repo, so:
+
+1. [vercel.com](https://vercel.com) → **Add New → Project** → import
+   `Bacilek/Efecto`. The Vite preset needs no changes.
+2. **Settings → Environment Variables**: add `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_PUBLISHABLE_KEY`, the same values as in `.env`. They are baked
+   in at build time, so changing one needs a redeploy.
+3. Deploy. Every push to `main` redeploys by itself from then on.
+4. Supabase → **Authentication → URL Configuration**: set the Site URL to the
+   deployed address and add `https://<your-app>.vercel.app/**` plus
+   `http://localhost:5173/**` to **Redirect URLs**, or the magic link will
+   refuse to come back.
+5. Open the address on each device, sign in, and add it to the home screen.
 
 The publishable key belongs in the client: `VITE_`-prefixed variables are baked
 into the bundle, so it ships to every visitor, and row level security is what
