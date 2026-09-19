@@ -46,19 +46,23 @@ two machines is two origins, so two databases and two sign-ins — and a phone
 cannot reach either. One deployed URL, installed as a PWA on each device, is
 what makes "change it here, see it there" true.
 
-`vercel.json` is in the repo, so:
+**Cloudflare Pages**, because its free tier allows a site that earns something
+(ads or a paid tier later) and Vercel's Hobby plan does not. `public/_redirects`
+is the only config it needs.
 
-1. [vercel.com](https://vercel.com) → **Add New → Project** → import
-   `Bacilek/Efecto`. The Vite preset needs no changes.
-2. **Settings → Environment Variables**: add `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_PUBLISHABLE_KEY`, the same values as in `.env`. They are baked
-   in at build time, so changing one needs a redeploy.
-3. Deploy. Every push to `main` redeploys by itself from then on.
-4. Supabase → **Authentication → URL Configuration**: set the Site URL to the
-   deployed address and add `https://<your-app>.vercel.app/**` plus
+1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**,
+   pick `Bacilek/Efecto`.
+2. Build command `npm run build`, output directory `dist`.
+3. **Settings → Environment variables**: add `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_PUBLISHABLE_KEY`, the same values as in `.env`, for both
+   Production and Preview. They are baked in at build time, so changing one
+   needs a redeploy.
+4. Deploy. Every push to `main` redeploys by itself from then on.
+5. Supabase → **Authentication → URL Configuration**: set the Site URL to the
+   deployed address and add `https://<your-app>.pages.dev/**` plus
    `http://localhost:5173/**` to **Redirect URLs**, or the magic link will
    refuse to come back.
-5. Open the address on each device, sign in, and add it to the home screen.
+6. Open the address on each device, sign in, and add it to the home screen.
 
 The publishable key belongs in the client: `VITE_`-prefixed variables are baked
 into the bundle, so it ships to every visitor, and row level security is what

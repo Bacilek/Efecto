@@ -517,11 +517,12 @@ Re-sending a row costs an idempotent upsert; losing one costs the edit.
 
 **Deployment.** Sync carries data between browsers, not between addresses —
 `localhost:5173` on two machines is two origins, hence two databases and two
-sign-ins, and a phone can reach neither. `vercel.json` (Vite preset + an SPA
-rewrite) is there so the app has one URL every device installs as a PWA; the
-`VITE_` keys are build-time, so changing one needs a redeploy, and Supabase's
-**Redirect URLs** have to list the deployed origin or the magic link won't come
-back. README has the steps.
+sign-ins, and a phone can reach neither. **Cloudflare Pages** hosts the one
+URL every device installs as a PWA (`public/_redirects` is the whole config);
+its free tier is the one that allows a site that earns something, which Vercel's
+Hobby plan does not. The `VITE_` keys are build-time, so changing one needs a
+redeploy, and Supabase's **Redirect URLs** have to list the deployed origin or
+the magic link won't come back. README has the steps.
 
 ## Not yet done / known simplifications
 

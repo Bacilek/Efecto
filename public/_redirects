@@ -1,0 +1,4 @@
+# Cloudflare Pages serves a real file whenever there is one, so this only
+# catches paths that are not assets: the app is a single page and everything
+# it draws is screen state, not a route.
+/*  /index.html  200
