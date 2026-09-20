@@ -309,7 +309,13 @@ lingers this way: `pendingSeminarAbsences` finds one left uncovered once its
 day has passed and a `useEffect` in `TodosScreen` settles it straight into
 `Lesson.absentDates` instead — missing a seminar has a real cost (one of a
 limited excuse count), not just something to catch up on later. Open classes
-(including carried-over ones) count towards the tab badge. Within the
+(including carried-over ones) count towards the tab badge. An open one carried
+over from an **earlier week** shows its date in red (`isFromEarlierWeek`):
+running late inside the week I'm in is ordinary, but a class still open when
+the timetable has come round to it again has slipped a whole cycle. It compares
+the Monday each date belongs to rather than `semesterWeek`, which is null
+outside the semester and would leave the comparison undecidable there. A ticked
+class never reddens — it's finished, so its age stops mattering. Within the
 open/done split, classes sort by date (oldest first), then subject name, then
 kind (**L**ecture → **S**eminar → **D**emo/lab) — so a run of leftovers from
 one subject reads `#L1, #S1, #L2, #S2` rather than jumping between subjects.

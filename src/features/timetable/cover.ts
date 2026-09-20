@@ -1,5 +1,5 @@
 import type { Lesson } from '@/db/db'
-import { addDays, fromISODate, toISODate, weekdayIndex, weekParity } from '@/lib/date'
+import { addDays, fromISODate, mondayOf, toISODate, weekdayIndex, weekParity } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
 import { happensOn } from './occurrence'
 import { semesterEnd, semesterStart, semesterWeek } from './semester'
@@ -41,6 +41,19 @@ export function coverPatch(lesson: Lesson, dateISO: string, covered: boolean): P
     patch.absentDates = lesson.absentDates.filter((d) => d !== dateISO)
   }
   return patch
+}
+
+/**
+ * Whether the occurrence is left over from an *earlier week*, not merely an
+ * earlier day. A Monday lecture still open on Wednesday is this week's work
+ * running late; one still open the week after has slipped a whole cycle of the
+ * timetable and is about to be lapped by the same class again — so Today marks
+ * only the latter in red. Compared by the Monday each date belongs to rather
+ * than by `semesterWeek`, which is null outside the semester and would leave
+ * the comparison undecidable there.
+ */
+export function isFromEarlierWeek(dateISO: string, todayISO: string): boolean {
+  return toISODate(mondayOf(fromISODate(dateISO))) < toISODate(mondayOf(fromISODate(todayISO)))
 }
 
 /** A tracked seminar: missing it costs one of a limited number of excuses. */

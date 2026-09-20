@@ -252,7 +252,9 @@ export function TodosScreen() {
 
           {tab === 'today' ? (
             <>
-              {classOccurrences.length > 0 && <ClassList occurrences={classOccurrences} />}
+              {classOccurrences.length > 0 && (
+                <ClassList occurrences={classOccurrences} today={today} />
+              )}
               {dueTodos.length > 0 && (
                 <DuesList
                   todos={dueTodos}

@@ -2,7 +2,12 @@ import { db, type Lesson } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { formatShort, fromISODate } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
-import { coverOn, coverPatch, type LessonOccurrence } from '@/features/timetable/cover'
+import {
+  coverOn,
+  coverPatch,
+  isFromEarlierWeek,
+  type LessonOccurrence,
+} from '@/features/timetable/cover'
 import { KIND_LABELS } from '@/features/timetable/layout'
 import { semesterWeek } from '@/features/timetable/semester'
 
@@ -11,9 +16,17 @@ import { semesterWeek } from '@/features/timetable/semester'
  * earlier lecture or lab nobody covered yet — it carries over exactly like a
  * planned todo (a tracked seminar never shows up here once its day has
  * passed; see `pendingSeminarAbsences`). One tap ticks it off, seen any way —
- * ticked classes sink below the open ones, like ticked todos.
+ * ticked classes sink below the open ones, like ticked todos. An open class
+ * carried over from an earlier week wears its date in red — see
+ * `isFromEarlierWeek`.
  */
-export function ClassList({ occurrences }: { occurrences: LessonOccurrence[] }) {
+export function ClassList({
+  occurrences,
+  today,
+}: {
+  occurrences: LessonOccurrence[]
+  today: string
+}) {
   const sorted = [...occurrences].sort((a, b) => {
     const doneA = Number(coverOn(a.lesson, a.date))
     const doneB = Number(coverOn(b.lesson, b.date))
@@ -37,6 +50,8 @@ export function ClassList({ occurrences }: { occurrences: LessonOccurrence[] }) 
         {sorted.map(({ lesson: l, date }) => {
           const cover = coverOn(l, date)
           const week = semesterWeek(fromISODate(date))
+          // A ticked class is finished, so its age stops mattering.
+          const stale = !cover && isFromEarlierWeek(date, today)
           return (
             <li key={`${l.id}|${date}`} className="border-b border-line-soft last:border-b-0">
               <button
@@ -66,7 +81,7 @@ export function ClassList({ occurrences }: { occurrences: LessonOccurrence[] }) 
                       #{KIND_LABELS[l.kind]}
                       {week ?? ''}
                     </span>
-                    <span className="shrink-0 text-xs text-muted">
+                    <span className={cn('shrink-0 text-xs', stale ? 'text-missed' : 'text-muted')}>
                       ({formatShort(fromISODate(date))})
                     </span>
                   </span>
