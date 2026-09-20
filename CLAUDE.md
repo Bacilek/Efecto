@@ -500,7 +500,11 @@ is *not* the installed PWA: following it signs in a different origin's copy of
 the app and leaves the one actually in use signed out. A typed code signs in the
 window it was typed into, so it works where the link can't. Supabase's Magic
 Link email template has to include `{{ .Token }}` for the code to be in the
-mail at all — it ships with the link only.
+mail at all — it ships with the link only — and **that template can't be edited
+until custom SMTP is configured**: the built-in mailer is a development one
+(two mails an hour) with its templates locked. So the field is live but the
+mail is codeless until an SMTP provider is set up, which is also what the phone
+is waiting on.
 
 The session itself persists (`persistSession` + `autoRefreshToken`), so signing
 in is once per device, not once per session.
@@ -591,6 +595,10 @@ sync table isn't quietly turned into a place to keep it.
 - Realtime is a nudge, not a transport: a device that is closed still catches up
   only when it next opens. Nothing tells you a *different* device changed the
   thing you are looking at right now.
+- Auth still runs on Supabase's built-in mailer: two mails an hour, and the
+  email templates are locked, so `{{ .Token }}` can't be added and the sign-in
+  code field stays empty-handed. Custom SMTP (Resend's free tier is enough)
+  unlocks both, and is needed before the phone or anyone else's account.
 - Capacitor: only `capacitor.config.ts`; `android/` not generated (needs Android
   Studio + JDK 17). Steps in README.
 

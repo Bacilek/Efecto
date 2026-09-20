@@ -29,12 +29,17 @@ configured — without it nothing changes.
    Not the secret key — see below.
 4. Restart `npm run dev` — Vite reads `.env` at startup.
 
-Then **Settings → Sync**: enter an email, then either open the magic link it
-sends **on this device** or type the 6-digit code from the same email. On a
-phone the code is the reliable one — the link opens in the system browser, not
-in the installed app. For the code to be in the mail, Supabase's
-**Authentication → Email Templates → Magic Link** has to include `{{ .Token }}`;
-the default template carries the link alone. That
+Then **Settings → Sync**: enter an email and open the magic link it sends **in
+the same browser** — the link signs in the origin it is opened from, so opening
+it elsewhere signs in a copy of the app you are not using.
+
+The sign-in box also takes the **6-digit code** from that email, which is the
+way in on a phone, where the link opens the system browser rather than the
+installed app. The code only exists if Supabase's **Authentication → Email
+Templates → Magic Link** includes `{{ .Token }}` — and **editing that template
+needs custom SMTP**: the built-in mailer is for development (2 mails an hour)
+and keeps its templates locked. So until an SMTP provider is configured the
+field is there but the mail carries no code, and the phone waits. That
 is normally the whole setup — a device settles its own direction: an empty
 account takes this device's data, and a device still carrying nothing but its
 seeds takes the cloud's. It stops to ask only when both sides hold real work,
@@ -58,18 +63,30 @@ what makes "change it here, see it there" true.
 (ads or a paid tier later) and Vercel's Hobby plan does not. `public/_redirects`
 is the only config it needs.
 
-1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**,
-   pick `Bacilek/Efecto`.
-2. Build command `npm run build`, output directory `dist`.
-3. **Settings → Environment variables**: add `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_PUBLISHABLE_KEY`, the same values as in `.env`, for both
-   Production and Preview. They are baked in at build time, so changing one
-   needs a redeploy.
+**Live at https://efecto-8yx.pages.dev** — that is the address every device
+installs, and every push to `main` redeploys it.
+
+1. Cloudflare dashboard → **Workers & Pages → Create**. New projects are steered
+   into the Workers importer, which wants a *deploy command* and an API token
+   and needs a `wrangler` config in the repo. This app doesn't have one: take
+   the **"Need to use the legacy Pages workflow? Continue to Pages"** link at
+   the bottom (or go straight to `dash.cloudflare.com/?to=/:account/pages/new`),
+   then **Connect to Git** and pick `Bacilek/Efecto`. The right form is the one
+   asking for a *build output directory* and no token.
+2. Build command `npm run build`, output directory `dist`, production branch
+   `main`.
+3. **Environment variables**: add `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_PUBLISHABLE_KEY`, the same values as in `.env`, plus
+   `NODE_VERSION=20` — Cloudflare otherwise builds on an older Node than this
+   project expects. Set them for Production and Preview, and set them *before*
+   the first deploy: they are baked in at build time, so a build without them
+   silently ships an app whose Settings screen reads "Not configured".
 4. Deploy. Every push to `main` redeploys by itself from then on.
 5. Supabase → **Authentication → URL Configuration**: set the Site URL to the
-   deployed address and add `https://<your-app>.pages.dev/**` plus
-   `http://localhost:5173/**` to **Redirect URLs**, or the magic link will
-   refuse to come back.
+   deployed address and add `https://efecto-8yx.pages.dev/**` plus
+   `http://localhost:5173/**` to **Redirect URLs**, or the magic link comes
+   back to an error page. The `/**` matters — the bare origin doesn't match the
+   parameters the link returns with.
 6. Open the address on each device, sign in, and add it to the home screen.
 
 The publishable key belongs in the client: `VITE_`-prefixed variables are baked
