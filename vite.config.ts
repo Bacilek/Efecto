@@ -30,7 +30,9 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          // Provisional "E" mark. PNGs still show the old "D" until regenerated.
+          // Provisional "E" mark. The PNGs are rendered from icon.svg; regenerate
+          // both if it changes — Windows takes the installed PWA's taskbar icon
+          // from the PNG, not the SVG.
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
