@@ -29,15 +29,23 @@ configured — without it nothing changes.
    Not the secret key — see below.
 4. Restart `npm run dev` — Vite reads `.env` at startup.
 
-Then **Settings → Sync**: enter an email and open the magic link it sends. That
+Then **Settings → Sync**: enter an email, then either open the magic link it
+sends **on this device** or type the 6-digit code from the same email. On a
+phone the code is the reliable one — the link opens in the system browser, not
+in the installed app. For the code to be in the mail, Supabase's
+**Authentication → Email Templates → Magic Link** has to include `{{ .Token }}`;
+the default template carries the link alone. That
 is normally the whole setup — a device settles its own direction: an empty
 account takes this device's data, and a device still carrying nothing but its
 seeds takes the cloud's. It stops to ask only when both sides hold real work,
 because either answer then throws some of it away.
 
-After that it syncs on its own: on save, on focus, on `online`, on a Supabase
-realtime nudge when another device writes (about a second), and on a slow poll
-behind all of it.
+After that it syncs on its own, from every screen and for as long as the app is
+open: on save, on focus, when the app is hidden or closed, on `online`, on a
+Supabase realtime nudge when another device writes (about a second), and on a
+slow poll behind all of it. Sign-in sticks across restarts, so there is nothing
+to remember. If sync ever does stop — a failed round trip, an expired session —
+the Settings tab carries a small red dot rather than going quiet.
 
 ## Deploying (one address for every device)
 

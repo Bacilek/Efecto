@@ -166,6 +166,13 @@ async function applyRemote(rows: RemoteRecord[]): Promise<number> {
 export const lastSyncedAt = () => metaGet<number>(LAST_SYNC)
 
 /**
+ * The account this device is reconciled with, if any. Set once and cleared only
+ * by signing out — so its presence with no session says the session was lost,
+ * not given up.
+ */
+export const linkedAccount = () => metaGet<string>(LINKED_ACCOUNT)
+
+/**
  * Whether this device still has to choose a direction for `userId`.
  *
  * Every install seeds its own default routines, timetable and folders, with

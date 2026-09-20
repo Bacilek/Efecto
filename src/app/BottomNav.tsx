@@ -10,7 +10,20 @@ const TABS: { id: Screen; label: string; icon: string }[] = [
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ]
 
-export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: Screen) => void }) {
+/**
+ * `alert` marks the Settings tab when sync has stopped carrying data — the one
+ * failure the app must not keep to itself, since every other sign of it is the
+ * absence of something.
+ */
+export function BottomNav({
+  active,
+  onChange,
+  alert = false,
+}: {
+  active: Screen
+  onChange: (s: Screen) => void
+  alert?: boolean
+}) {
   return (
     <nav
       className="border-t border-line bg-panel"
@@ -27,7 +40,12 @@ export function BottomNav({ active, onChange }: { active: Screen; onChange: (s: 
                 active === t.id ? 'text-parchment' : 'text-muted',
               )}
             >
-              <span className="text-lg leading-none">{t.icon}</span>
+              <span className="relative text-lg leading-none">
+                {t.icon}
+                {alert && t.id === 'settings' && (
+                  <span className="absolute -right-1.5 top-0 h-1.5 w-1.5 rounded-full bg-missed" />
+                )}
+              </span>
               {t.label}
             </button>
           </li>

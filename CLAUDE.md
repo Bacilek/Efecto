@@ -493,10 +493,40 @@ also used elsewhere still gets the **"Choose a starting point"** panel, since
 either answer there throws work away. A failed remote count throws rather than
 reading as "the cloud is empty", which would upload over it.
 
-Auth is an emailed **magic link** (`signInWithOtp`) — no passwords to keep.
-`useSync` then syncs on local write (debounced 2.5 s via `onLocalWrite`), on tab
-focus, on `online`, on a **realtime** nudge, and on a 60 s poll, plus a manual
-"Sync now".
+Auth is an emailed **magic link** (`signInWithOtp`) — no passwords to keep — or
+the **6-digit code** from the same email (`verifyOtp`), offered right under the
+"check your inbox" line. The link opens in the system browser, which on a phone
+is *not* the installed PWA: following it signs in a different origin's copy of
+the app and leaves the one actually in use signed out. A typed code signs in the
+window it was typed into, so it works where the link can't. Supabase's Magic
+Link email template has to include `{{ .Token }}` for the code to be in the
+mail at all — it ships with the link only.
+
+The session itself persists (`persistSession` + `autoRefreshToken`), so signing
+in is once per device, not once per session.
+
+**`useSync` runs above every screen**, from `SyncProvider` in `App.tsx`; the
+Settings block only *reads* it, through `useSyncState` (`sync/syncContext.ts`).
+That placement is the whole point: every automatic trigger belongs to the
+component that called the hook, so while `SyncSection` owned it the app synced
+only while Settings was on screen — a morning of ticking routines synced
+nothing, and "Sync now" stopped being a convenience and became the only thing
+that worked.
+
+It syncs on local write (debounced 2.5 s via `onLocalWrite`), on any
+`visibilitychange`, on `pagehide`, on `online`, on a **realtime** nudge, and on
+a 60 s poll, plus a manual "Sync now". Hiding or leaving **flushes** the pending
+debounce rather than waiting it out — a tick made two seconds before the tab
+goes away would otherwise sit there, and a backgrounded phone tab may never be
+woken again. The flush may be cut short mid-request, which costs nothing: the
+row is simply still dirty and goes out on the next open.
+
+Because sync is meant to be invisible, the one thing it must not do is fail
+invisibly. `needsAttention` is true when it has stopped carrying data and only
+the user can restart it — a failed sync, a pending link choice, or a signed-out
+device that **was** linked before (`linkedAccount()` survives everything but an
+explicit sign-out, so a lost session is distinguishable from a deliberate local
+one). `BottomNav` then shows a small red dot on the Settings tab.
 
 The realtime channel subscribes to `records` filtered by `user_id`, so the
 server says when another device wrote and a change lands in about a second
@@ -523,6 +553,17 @@ its free tier is the one that allows a site that earns something, which Vercel's
 Hobby plan does not. The `VITE_` keys are build-time, so changing one needs a
 redeploy, and Supabase's **Redirect URLs** have to list the deployed origin or
 the magic link won't come back. README has the steps.
+
+**Room for premium later.** The app is to stay free with paid premium / no-ads
+on top, and the account is already the right hook for that: `user_id` scopes
+every row and RLS is what separates accounts. When entitlements arrive they
+belong in their **own table** keyed by `user_id` (`profiles` / `entitlements`),
+written only by the payment webhook with the secret key server-side, and read by
+the client as a plain row — never a flag inside `records`, which the client
+owns and could simply set. Gating that matters (anything costing money to run)
+has to be enforced in RLS or an edge function; the client-side check is a
+courtesy, not the lock. Nothing of this exists yet — the note is here so the
+sync table isn't quietly turned into a place to keep it.
 
 ## Not yet done / known simplifications
 
@@ -593,8 +634,12 @@ Sync — needs a `.env` and `supabase/schema.sql` run once. Sign in on device A,
 pick "Use this device's data"; sign in on device B, pick "Replace with the cloud
 copy". Then a mark, a todo and an `absenceLimit` set on A show up on B within
 seconds, a delete on A removes it on B rather than coming back, and both survive
-a reload. With no `.env` the Settings block reads "Not configured" and nothing
-else changes.
+a reload. Crucially, do that **without opening Settings on either device** —
+that is the whole fix: mark a routine on A while sitting on the Routines tab and
+it must appear on B's Routines tab within seconds. Reload A and it is still
+signed in. Sign out on A and the Settings tab shows no dot (that was a choice);
+break sync instead — go offline and edit something — and the dot appears. With
+no `.env` the Settings block reads "Not configured" and nothing else changes.
 
 Changing `tailwind.config.js` (or `postcss.config.js` / `vite.config.ts`)
 **needs the dev server restarted** — PostCSS caches the config at startup, so new

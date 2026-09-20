@@ -6,6 +6,7 @@ import {
   autoLinkDirection,
   lastSyncedAt,
   linkDevice,
+  linkedAccount,
   needsLinking,
   resetSyncState,
   syncNow,
@@ -30,9 +31,16 @@ export interface SyncState {
   email: string | null
   lastAt: number | null
   error: string | null
+  /**
+   * Sync is meant to be invisible, so the one thing it must never do is fail
+   * invisibly: true when it has stopped carrying data and only the user can
+   * restart it.
+   */
+  needsAttention: boolean
   sync: () => void
   link: (direction: LinkDirection) => Promise<void>
   signIn: (email: string) => Promise<void>
+  verifyCode: (email: string, code: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -41,8 +49,14 @@ export function useSync(): SyncState {
   const [phase, setPhase] = useState<SyncPhase>(syncConfigured ? 'signed-out' : 'off')
   const [lastAt, setLastAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Whether this device was ever linked to an account. A device that used to
+  // sync and now sits signed out has lost its session rather than chosen to be
+  // local, and that is worth pointing at.
+  const [everLinked, setEverLinked] = useState(false)
   // A sync in flight; its own writes must not schedule another one.
   const running = useRef(false)
+  // The pending debounce, so closing the tab can flush it instead of dropping it.
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (!supabase) return
@@ -53,6 +67,7 @@ export function useSync(): SyncState {
 
   useEffect(() => {
     void lastSyncedAt().then((t) => setLastAt(t ?? null))
+    void linkedAccount().then((a) => setEverLinked(Boolean(a)))
   }, [session])
 
   /**
@@ -84,7 +99,10 @@ export function useSync(): SyncState {
       // A device added to an account settles its own direction wherever that
       // is not a real choice — which is every device but the awkward one.
       const direction = await autoLinkDirection(user.id)
-      return direction ? linkDevice(user.id, direction) : null
+      if (!direction) return null
+      const res = await linkDevice(user.id, direction)
+      setEverLinked(true)
+      return res
     })
   }, [session, guarded])
 
@@ -97,18 +115,27 @@ export function useSync(): SyncState {
     }
     void run()
 
-    let timer: ReturnType<typeof setTimeout> | undefined
     const schedule = () => {
       if (running.current) return
-      clearTimeout(timer)
-      timer = setTimeout(() => void run(), DEBOUNCE_MS)
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => void run(), DEBOUNCE_MS)
     }
 
     const stopWatching = onLocalWrite(schedule)
-    const onVisible = () => document.visibilityState === 'visible' && void run()
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('online', onVisible)
     const poll = setInterval(() => void run(), POLL_MS)
+
+    // Leaving is the riskiest moment there is: a tick made two seconds ago is
+    // still sitting in the debounce, and on a phone a backgrounded tab may
+    // never be woken again. So hiding flushes rather than waits — the round
+    // trip may be cut short, in which case the row is simply still dirty and
+    // goes out on the next open. Coming back reconciles for the same reason.
+    const reconcile = () => {
+      clearTimeout(timer.current)
+      void run()
+    }
+    document.addEventListener('visibilitychange', reconcile)
+    window.addEventListener('pagehide', reconcile)
+    window.addEventListener('online', reconcile)
 
     // The server says when another device wrote, so a change lands here in
     // about a second instead of waiting out the poll. The rows this device
@@ -129,11 +156,12 @@ export function useSync(): SyncState {
       .subscribe()
 
     return () => {
-      clearTimeout(timer)
+      clearTimeout(timer.current)
       clearInterval(poll)
       stopWatching()
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('online', onVisible)
+      document.removeEventListener('visibilitychange', reconcile)
+      window.removeEventListener('pagehide', reconcile)
+      window.removeEventListener('online', reconcile)
       void supabase?.removeChannel(channel)
     }
   }, [session, run])
@@ -143,6 +171,7 @@ export function useSync(): SyncState {
       const user = session?.user
       if (!user) return
       await guarded(() => linkDevice(user.id, direction))
+      setEverLinked(true)
     },
     [session, guarded],
   )
@@ -161,6 +190,29 @@ export function useSync(): SyncState {
     }
   }, [])
 
+  /**
+   * Sign in with the code from the same email instead of its link.
+   *
+   * The link opens in whatever the system browser is, which on a phone is not
+   * the installed PWA — following it signs in a different origin's copy of the
+   * app and leaves the one you actually use signed out. A typed code signs in
+   * the window it was typed into, so it works everywhere the link doesn't.
+   */
+  const verifyCode = useCallback(async (email: string, code: string) => {
+    if (!supabase) return
+    setError(null)
+    const { error: err } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'email',
+    })
+    if (err) {
+      setError(err.message)
+      setPhase('error')
+      throw err
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
     if (!supabase) return
     await supabase.auth.signOut()
@@ -168,6 +220,7 @@ export function useSync(): SyncState {
     // asking which copy wins rather than silently merging two people's data.
     await resetSyncState()
     setLastAt(null)
+    setEverLinked(false)
   }, [])
 
   return {
@@ -176,9 +229,12 @@ export function useSync(): SyncState {
     email: session?.user.email ?? null,
     lastAt,
     error,
+    needsAttention:
+      phase === 'error' || phase === 'needs-link' || (phase === 'signed-out' && everLinked),
     sync: () => void run(),
     link,
     signIn,
+    verifyCode,
     signOut,
   }
 }

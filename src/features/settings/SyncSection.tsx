@@ -1,14 +1,17 @@
 import { useState } from 'react'
-import { useSync } from '@/sync/useSync'
+import { useSyncState } from '@/sync/syncContext'
 
 /**
- * The Settings block that owns cross-device sync: sign in, pick a direction the
- * first time, then watch it keep itself in order.
+ * The Settings block that *shows* cross-device sync: sign in, pick a direction
+ * the first time, then watch it keep itself in order. It no longer runs it —
+ * `SyncProvider` does, above every screen — so leaving this tab no longer stops
+ * the app syncing.
  */
 export function SyncSection() {
-  const { phase, email, lastAt, error, sync, link, signIn, signOut } = useSync()
+  const { phase, email, lastAt, error, sync, link, signIn, verifyCode, signOut } = useSyncState()
   const [draft, setDraft] = useState('')
   const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
 
   if (phase === 'off') {
     return (
@@ -27,9 +30,36 @@ export function SyncSection() {
     return (
       <Panel title="Sync" desc="Sign in to share routines, todos and the timetable across devices.">
         {sent ? (
-          <p className="text-sm text-muted">
-            Check your inbox — the link signs this device in. You can close this tab.
-          </p>
+          // The link opens in the system browser, which on a phone is not the
+          // installed app — so the same email's code is offered here, and it
+          // signs in the window it is typed into.
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void verifyCode(draft.trim(), code.trim()).then(
+                () => setCode(''),
+                () => undefined,
+              )
+            }}
+          >
+            <p className="text-sm text-muted">
+              Check your inbox. Open the link on this device, or type the code from the same email:
+            </p>
+            <div className="flex gap-2">
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="123456"
+                className="min-w-0 flex-1 rounded-md border border-line bg-ink px-3 py-1.5 text-sm text-parchment placeholder:text-dim focus:border-muted focus:outline-none"
+              />
+              <button className={btn} type="submit" disabled={code.trim().length < 6}>
+                Sign in
+              </button>
+            </div>
+          </form>
         ) : (
           <form
             className="flex gap-2"
@@ -97,6 +127,10 @@ export function SyncSection() {
       }
     >
       <p className="text-xs text-muted">{email}</p>
+      <p className="text-xs text-dim">
+        Syncs by itself — on every change, when the app opens or closes, and whenever another device
+        writes. The button is only there for impatience.
+      </p>
       <div className="flex gap-2">
         <button className={btn} disabled={phase === 'syncing'} onClick={sync}>
           Sync now
