@@ -208,6 +208,12 @@ left }`, counting only dates **inside the current semester** — so moving
   - The editor sets the limit with a stepper (0 = not tracked) and records the
     absence for the tapped date with "I wasn't there", next to the existing
     cancel-this-one gesture — it writes immediately and closes, like that one.
+    `toggledAbsence` settles `coveredDates` in the same write, both ways: being
+    there covers that date, missing it un-covers it. Clearing an absence
+    without covering the date would leave it neither absent nor covered, which
+    is precisely what `pendingSeminarAbsences` reads as an unsettled past
+    seminar — so Today would record the absence again the moment it mounted and
+    the dot would turn red once more.
 - `weeks` restricts a lesson to odd or even **semester** weeks (the parity
   `SemesterNav` shows), set from the editor's "Repeats" row. A mismatched week
   renders the lesson as a ghost, like any other exception.
@@ -296,7 +302,8 @@ exactly like a planned todo, showing on every later day until marked, and
 dropping off for good the day after it's ticked. One tap ticks a class off,
 seen any way — there's no picker, just done/not done — stored as a plain date
 list in `Lesson.coveredDates` (`string[]`), so it syncs with the lesson row and
-needs no new table. Ticking also takes back an absence recorded for that date.
+needs no new table. Ticking also takes back an absence recorded for that
+date, and the timetable's "I wasn't there" is the same edit in reverse.
 A **tracked seminar** (`kind === 'seminar'` with an `absenceLimit`) never
 lingers this way: `pendingSeminarAbsences` finds one left uncovered once its
 day has passed and a `useEffect` in `TodosScreen` settles it straight into

@@ -32,12 +32,27 @@ export function wasAbsent(lesson: Lesson, dateISO: string): boolean {
   return lesson.absentDates?.includes(dateISO) ?? false
 }
 
-/** The field that records — or takes back — an absence on one date. */
+/**
+ * The fields that record — or take back — an absence on one date.
+ *
+ * The two lists are the mirror of each other, so each edit settles both: being
+ * there covers the occurrence, and missing it un-covers one previously ticked
+ * off. Taking an absence back without covering the date would leave it neither
+ * absent nor covered, which is exactly what `pendingSeminarAbsences` treats as
+ * an unsettled past seminar — so the absence would simply be recorded again
+ * the next time the Todos screen mounted, and the dot would come back red.
+ */
 export function toggledAbsence(lesson: Lesson, dateISO: string): Partial<Lesson> {
   const dates = lesson.absentDates ?? []
+  const covered = lesson.coveredDates ?? []
+  if (dates.includes(dateISO)) {
+    return {
+      absentDates: dates.filter((d) => d !== dateISO),
+      coveredDates: covered.includes(dateISO) ? covered : [...covered, dateISO],
+    }
+  }
   return {
-    absentDates: dates.includes(dateISO)
-      ? dates.filter((d) => d !== dateISO)
-      : [...dates, dateISO].sort(),
+    absentDates: [...dates, dateISO].sort(),
+    coveredDates: covered.filter((d) => d !== dateISO),
   }
 }
