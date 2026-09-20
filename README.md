@@ -5,6 +5,12 @@ timetable**, with **todos** and a **calendar** to come — one place to run your
 day. Offline-first, data lives on the device. Target: installable PWA now,
 Google Play app later (via Capacitor).
 
+**Running at https://efecto-8yx.pages.dev** — install it from there on every
+device. That deployment is the copy of record: each origin gets its own
+IndexedDB, so `npm run dev` on localhost is a *separate install* with separate
+data and a separate sign-in, for development only. Work done there syncs
+nowhere.
+
 ## Status
 
 | Feature | State |
@@ -13,7 +19,8 @@ Google Play app later (via Capacitor).
 | Timetable (weekly, Mon–Fri) | done (v1) |
 | Todos | done (v1) |
 | Calendar | stub |
-| Cloud sync (Supabase) | done (v1) — needs a `.env`, see below |
+| Cloud sync (Supabase) | done (v1) — live, signed in on desktop |
+| Phone | waiting on custom SMTP, see below |
 | Android build (Capacitor) | config only |
 
 ## Cloud sync (optional)

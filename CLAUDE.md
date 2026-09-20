@@ -558,6 +558,17 @@ Hobby plan does not. The `VITE_` keys are build-time, so changing one needs a
 redeploy, and Supabase's **Redirect URLs** have to list the deployed origin or
 the magic link won't come back. README has the steps.
 
+It is **live at https://efecto-8yx.pages.dev**, deployed from `main` on every
+push, and that deployment is the **copy of record** as of 2026-09-21. The
+localhost install is a different origin and therefore a different database with
+a different sign-in — development only, and nothing done there reaches the
+account. The two were not merged: the deployed install's data was kept and the
+old localhost history deliberately abandoned, because a fresh install seeds the
+*current* `SEED_TIMETABLE` from the source while localhost still held an older
+edited one, and no routine marks or todos there were worth the awkward merge
+(the Settings backup is all-or-nothing, so restoring them would have dragged
+the stale timetable back with them).
+
 **Room for premium later.** The app is to stay free with paid premium / no-ads
 on top, and the account is already the right hook for that: `user_id` scopes
 every row and RLS is what separates accounts. When entitlements arrive they
