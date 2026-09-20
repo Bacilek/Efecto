@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, stamp, type Lesson } from '@/db/db'
 import { removeRecord } from '@/db/remove'
+import { cn } from '@/lib/cn'
 import { toISODate, weekParity, type WeekdayIndex } from '@/lib/date'
 import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
@@ -95,28 +96,45 @@ export function TimetableScreen() {
 
       <SemesterNav week={week} />
 
-      <TimetableGrid
-        lessons={lessons ?? []}
-        dates={week.dates}
-        parity={weekParity(week.week)}
-        showNow={week.isCurrent}
-        onTapLesson={(l) =>
-          setEditor({
-            lesson: l,
-            day: l.day,
-            start: l.start,
-            date: toISODate(week.dates[l.day]),
-          })
-        }
-        onTapSlot={(day, startMinutes) =>
-          setEditor({
-            lesson: null,
-            day,
-            start: minutesToTime(startMinutes),
-            date: toISODate(week.dates[day]),
-          })
-        }
-      />
+      {/*
+        A week other than the one we're in is reference, not the day's plan, so
+        the whole grid steps back: dimmed and drained of most of its colour. It
+        stays fully interactive — paging back to cancel a lesson or record an
+        absence is the main reason to be there at all — and the wash is applied
+        here rather than inside the grid so nothing has to thread "is this the
+        current week" through every block, tick and marker. Outside the semester
+        no week is current, so all of them read this way, which is right: none
+        of them is today.
+      */}
+      <div
+        className={cn(
+          'transition-[opacity,filter] duration-150',
+          week.isCurrent ? '' : 'opacity-70 saturate-[.45]',
+        )}
+      >
+        <TimetableGrid
+          lessons={lessons ?? []}
+          dates={week.dates}
+          parity={weekParity(week.week)}
+          showNow={week.isCurrent}
+          onTapLesson={(l) =>
+            setEditor({
+              lesson: l,
+              day: l.day,
+              start: l.start,
+              date: toISODate(week.dates[l.day]),
+            })
+          }
+          onTapSlot={(day, startMinutes) =>
+            setEditor({
+              lesson: null,
+              day,
+              start: minutesToTime(startMinutes),
+              date: toISODate(week.dates[day]),
+            })
+          }
+        />
+      </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pt-2 text-[11px] text-muted">
         {KINDS.map((k) => (

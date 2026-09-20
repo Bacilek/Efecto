@@ -258,6 +258,14 @@ left }`, counting only dates **inside the current semester** — so moving
   - The lessons never change — the timetable is a template with no dates — so
     paging only moves the label, the parity and whether the "now" marker
     applies (`showNow`, true only for the week we're actually in).
+  - A week other than the current one is reference rather than the day's plan,
+    so `TimetableScreen` washes the whole grid out (`opacity-70 saturate-[.45]`
+    on a wrapper, keyed off `week.isCurrent`). A wrapper rather than anything
+    inside the grid: nothing then has to thread "is this the current week"
+    through every block, tick and marker. It stays fully interactive — paging
+    back to cancel a lesson or record an absence is the main reason to be
+    there. Outside the semester no week is current, so every one reads this
+    way, which is right: none of them is today.
   - `semesterWeek` returns null outside the semester. Then the view defaults to
     week 1, the jump-to-now button is disabled and no marker is drawn.
 - **Per-date exceptions** (`occurrence.ts`) break the weekly rhythm:
