@@ -19,3 +19,6 @@ dev-dist
 # capacitor native projects (generated with `npx cap add`)
 /android
 /ios
+
+# generated promo video and its assets — megabytes of media the app never ships
+/brag-output
