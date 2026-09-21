@@ -72,6 +72,30 @@ export function isOverdue(todo: Todo, todayISO: string): boolean {
   return !todo.done && !!todo.dueBy && todo.dueBy < todayISO
 }
 
+/** A day's status for something on a `SubjectDayList`-style day report. */
+export type DayStatus = 'done' | 'missed' | 'upcoming'
+
+/**
+ * A plain (non-subject) todo's status on a specific day, given it has been
+ * planned at some point — the day-report counterpart to `isOnToday`, for
+ * `SubjectDayNav`'s pager. Unlike a recurring subject todo, a plain todo
+ * normally runs through its life once (create → plan → maybe re-plan →
+ * done), so `plannedSinceOf` — which survives an explicit re-plan within the
+ * same run — is enough to answer "was this open on day X" without any extra
+ * history: the run spans `[plannedSinceOf(todo), doneAt ?? todayISO]`.
+ */
+export function plannedTodoStatus(todo: Todo, dateISO: string, todayISO: string): DayStatus | null {
+  if (!todo.plannedFor) return null
+  if (todo.plannedFor > todayISO) {
+    return dateISO === todo.plannedFor ? 'upcoming' : null
+  }
+  const start = plannedSinceOf(todo)
+  if (!start || dateISO < start) return null
+  const end = todo.done && todo.doneAt !== undefined ? toISODate(new Date(todo.doneAt)) : todayISO
+  if (dateISO > end) return null
+  return todo.done && dateISO === end ? 'done' : 'missed'
+}
+
 /** The next date on or after `todayISO` that lands on `weekday`. */
 export function nextOccurrenceISO(weekday: WeekdayIndex, todayISO: string): string {
   const today = fromISODate(todayISO)

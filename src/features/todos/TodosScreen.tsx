@@ -11,6 +11,7 @@ import { FolderEditor, type FolderDraft } from './FolderEditor'
 import { SubjectList } from './SubjectList'
 import { SubjectDayNav } from './SubjectDayNav'
 import { SubjectDayList } from './SubjectDayList'
+import { PlannedDayList } from './PlannedDayList'
 import { DuesList } from './DuesList'
 import { buildSubjectGroups } from './subjects'
 import { buildSubjectDayGroups } from './subjectDay'
@@ -26,6 +27,8 @@ import {
   nextDay,
   planPatch,
   plannedSinceOf,
+  plannedTodoStatus,
+  type DayStatus,
 } from './today'
 
 /** `{ todo: null }` opens the sheet for a new todo in `folderId`. */
@@ -100,10 +103,11 @@ export function TodosScreen() {
   )
 
   // Whether there's anything for the day pager to ever show — hidden
-  // entirely rather than an empty box when the user has no timetable and no
-  // subject-tagged todos at all.
-  const hasSubjectContent =
-    (lessons?.length ?? 0) > 0 || (todos ?? []).some((t) => t.subject !== undefined)
+  // entirely rather than an empty box when the user has no timetable, no
+  // subject-tagged todos, and has never planned a plain todo for a day.
+  const hasDayPagerContent =
+    (lessons?.length ?? 0) > 0 ||
+    (todos ?? []).some((t) => t.subject !== undefined || t.plannedFor !== undefined)
 
   // A day other than today is a fixed-day report (`buildSubjectDayGroups`),
   // not the live worklist — see `subjectDay.ts` for why those are kept as
@@ -113,6 +117,19 @@ export function TodosScreen() {
       viewDate === today ? [] : buildSubjectDayGroups(lessons ?? [], todos ?? [], viewDate, today),
     [lessons, todos, viewDate, today],
   )
+
+  // Plain (non-subject) planned todos for that same day — a subject-tagged
+  // one is already covered by `dayGroups`, so it's excluded here.
+  const plannedDayItems = useMemo(() => {
+    if (viewDate === today) return []
+    const items: { todo: Todo; status: DayStatus }[] = []
+    for (const t of todos ?? []) {
+      if (t.subject) continue
+      const status = plannedTodoStatus(t, viewDate, today)
+      if (status) items.push({ todo: t, status })
+    }
+    return items
+  }, [todos, viewDate, today])
 
   // A tracked seminar left uncovered once its day has passed doesn't linger on
   // Today — it settles straight into a recorded absence instead.
@@ -188,6 +205,20 @@ export function TodosScreen() {
     const dates = todo.completedDates ?? []
     await db.todos.update(todo.id, {
       completedDates: done ? [...dates, viewDate] : dates.filter((d) => d !== viewDate),
+    })
+  }
+
+  /**
+   * Mark a plain planned todo done or not from the day pager, backdated to
+   * `viewDate` rather than stamped "now" — `plannedTodoStatus` reads a done
+   * todo's day straight off `doneAt`, so ticking it while looking at last
+   * Tuesday has to actually date it to last Tuesday, or the report wouldn't
+   * show that row flipping to done on the day you were just looking at.
+   */
+  async function togglePlannedDay(todo: Todo, done: boolean) {
+    await db.todos.update(todo.id, {
+      done,
+      doneAt: done ? fromISODate(viewDate).getTime() : undefined,
     })
   }
 
@@ -332,7 +363,7 @@ export function TodosScreen() {
 
           {tab === 'today' ? (
             <>
-              {hasSubjectContent && (
+              {hasDayPagerContent && (
                 <section className="px-4 pb-2">
                   <SubjectDayNav date={viewDate} onChange={setViewDate} />
                   {viewDate === today ? (
@@ -345,11 +376,18 @@ export function TodosScreen() {
                       />
                     )
                   ) : (
-                    <SubjectDayList
-                      groups={dayGroups}
-                      onToggleOccurrence={(l, covered) => void toggleDayOccurrence(l, covered)}
-                      onToggleTodo={(t, done) => void toggleDayTodo(t, done)}
-                    />
+                    <div className="flex flex-col gap-2">
+                      <SubjectDayList
+                        groups={dayGroups}
+                        onToggleOccurrence={(l, covered) => void toggleDayOccurrence(l, covered)}
+                        onToggleTodo={(t, done) => void toggleDayTodo(t, done)}
+                      />
+                      <PlannedDayList
+                        items={plannedDayItems}
+                        folderOf={folderOf}
+                        onToggle={(t, done) => void togglePlannedDay(t, done)}
+                      />
+                    </div>
                   )}
                 </section>
               )}

@@ -100,8 +100,12 @@ export function SubjectDayList({
   )
 }
 
-/** One occurrence or todo row: tappable to toggle past-day status, plain for an upcoming one. */
-function DayRow({
+/**
+ * One occurrence or todo row: tappable to toggle past-day status, plain for
+ * an upcoming one. Exported so `PlannedDayList` (a flat, non-subject list of
+ * the same day-report shape) can share the exact same row look.
+ */
+export function DayRow({
   status,
   onToggle,
   children,

@@ -1,8 +1,9 @@
 import type { Lesson, Todo } from '@/db/db'
 import { fromISODate, toISODate, weekdayIndex } from '@/lib/date'
 import { coverOn, lessonsOn } from '@/features/timetable/cover'
+import type { DayStatus } from './today'
 
-export type DayStatus = 'done' | 'missed' | 'upcoming'
+export type { DayStatus }
 
 function lessonStatus(lesson: Lesson, dateISO: string, todayISO: string): DayStatus {
   if (dateISO > todayISO) return 'upcoming'
