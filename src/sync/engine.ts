@@ -60,11 +60,33 @@ async function push(userId: string): Promise<number> {
   // may not have made it into the payload — re-sending a row costs an
   // idempotent upsert, losing one costs the edit.
   const cursor = Date.now() - 1
-  const payload: Array<Record<string, unknown>> = []
 
+  // Every table's dirty rows and the tombstones are read together in one
+  // transaction, not as separate awaited calls. `removeRecords` deletes a row
+  // and writes its tombstone atomically, so reading the two apart risks a
+  // delete committing *between* them: the row would still show up here as a
+  // live "dirty" edit *and* as a tombstone, sending Postgres two upsert rows
+  // for the same (kind, id) in one statement — which it rejects with "ON
+  // CONFLICT DO UPDATE command cannot affect row a second time".
+  const { dirty, graves } = await db.transaction(
+    'r',
+    [...SYNCED_TABLES.map((t) => db.table(t)), db.tombstones],
+    async () => {
+      const dirty = new Map<SyncedTable, Row[]>()
+      for (const kind of SYNCED_TABLES) {
+        dirty.set(
+          kind,
+          (await db.table<Row>(kind).where('updatedAt').above(since).toArray()) as Row[],
+        )
+      }
+      const graves = await db.tombstones.where('deletedAt').above(since).toArray()
+      return { dirty, graves }
+    },
+  )
+
+  const payload: Array<Record<string, unknown>> = []
   for (const kind of SYNCED_TABLES) {
-    const dirty = (await db.table<Row>(kind).where('updatedAt').above(since).toArray()) as Row[]
-    for (const row of dirty) {
+    for (const row of dirty.get(kind)!) {
       payload.push({
         user_id: userId,
         kind,
@@ -75,8 +97,6 @@ async function push(userId: string): Promise<number> {
       })
     }
   }
-
-  const graves = await db.tombstones.where('deletedAt').above(since).toArray()
   for (const t of graves) {
     payload.push({
       user_id: userId,
