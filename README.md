@@ -1,9 +1,9 @@
 # Efecto
 
-Minimalist, mobile-first efficiency app: a **routine tracker** and a **school
-timetable**, with **todos** and a **calendar** to come — one place to run your
-day. Offline-first, data lives on the device. Target: installable PWA now,
-Google Play app later (via Capacitor).
+Minimalist, mobile-first efficiency app: a **routine tracker**, a **school
+timetable** and **todos**, with a **calendar** to come — one place to run
+your day. Offline-first by default, with optional cloud sync across devices.
+Target: installable PWA now, Google Play app later (via Capacitor).
 
 **Running at https://efecto-8yx.pages.dev** — install it from there on every
 device. That deployment is the copy of record: each origin gets its own
@@ -142,9 +142,9 @@ grid — **rows are days, time runs left to right**. The whole window fits the
 screen, so there is nothing to scroll. It's a template: it repeats every week
 and isn't tied to dates.
 
-Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
-(LAB, blue)**, and carries a subject code, an optional seminar group and a room —
-`PV170/09` in `S405`.
+Each lesson is a **lecture (L, green)**, a **seminar (S, yellow)** or a **demo
+class (D, blue)**, and carries a subject code, an optional seminar group and a
+room — `PV170/09` in `S405`.
 
 - Tap any empty slot to add a lesson; it's prefilled with the hour you tapped.
 - Tap a lesson to edit its code, type, group, room, day and times, or delete it.
@@ -166,6 +166,53 @@ Each lesson is a **lecture (L, green)**, a **seminar (C, yellow)** or a **lab
 - On a weekday, a vertical line marks the current time and everything to its
   left — the part of the week that has already happened — is dimmed. At the
   weekend neither is shown; the timetable reads as the week ahead.
+- A lesson can be marked **recorded** (a small camera icon) — it's filmed, so
+  there's no need to go in person. It can also track an **excused-absence
+  allowance per semester**: a row of dots along its bottom edge, filled red
+  as absences are used. Tap a lesson to open the occurrence editor, which
+  lets you cancel/restore just that date, record ("I wasn't there") or take
+  back an absence, and toggle whether that date is **marked done on Today** —
+  handy for reopening one that's already dropped off the Todos list.
+- Ticking a class off on the Todos tab (below) marks it covered here too —
+  both screens read the same state.
+
+## Todos
+
+Two sub-tabs: **Today** — what you mean to do today, pulled in from your
+folders — and **All** — every task, as folder tiles.
+
+- **Folders** are the only structure — no priority, no reminders. A todo
+  belongs to one, or sits in "Unsorted" if none is picked.
+- The floating **+** adds a task into the open folder (or, from the Today
+  tab, today's date). Tap a task to edit it, its checkbox to tick it —
+  ticked ones sink to the bottom, struck through, rather than vanishing.
+- ☀︎ pulls a task onto Today; → pushes it to tomorrow; 🗓︎ opens the
+  platform's own date picker for any day. Left unfinished, a task **carries
+  over** to the next day instead of disappearing, and shows how long it's
+  been carried.
+- A **due** task (a real deadline) gets its own "Dues" group above the rest,
+  showing from the moment the deadline is set through the day itself and
+  past it as overdue.
+- **Recurring & subject-tagged todos.** A todo can repeat weekly on a chosen
+  weekday (its editor's *Repeats* row) and/or carry a **Subject** tag
+  matching a timetable subject code — for "read the theory before Monday's
+  seminar" or "submit the weekly assignment by Sunday" style tasks. A
+  recurring one re-arms itself for its next cycle automatically once the day
+  after it's ticked has passed; left unticked, it just stays overdue like any
+  deadline rather than silently rolling forward and hiding a missed week.
+- **Classes.** Today's timetable lessons (plus any earlier one nobody's
+  covered yet) sit at the top of the Today tab, grouped with same-subject
+  todos into one collapsible row per subject — tap to expand and tick either
+  off from there. A subject stays visible (muted, "all done") for the rest of
+  the day it's completed, instead of disappearing the moment the last box is
+  ticked.
+- **Day pager**, above the Classes list: page back to see what was done or
+  missed on a past day (an unwatched lecture reads as neutral, not
+  "missed" — only a real recorded seminar absence does), or forward to
+  preview upcoming classes and which recurring todos are next due. A plain
+  planned todo shows there too, on whichever day it was actually open. Scoped
+  to Classes plus subject-tagged/planned todos — Dues and undated folder
+  tasks aren't day-browsable, since neither one keeps that kind of history.
 
 ## Development
 
@@ -191,19 +238,23 @@ Path alias `@/` → `src/`.
 
 ## Data
 
-Everything is stored locally in IndexedDB (`efecto` database):
+Everything is stored locally in IndexedDB (`efecto` database), and — once
+sync is configured — mirrored to one generic table in Supabase:
 
-- `routines` — `{ id, name, order, activeDays[0..6], time?, timesPerWeek?, weeks?, archived, createdAt }`
+- `routines` — `{ id, name, emoji?, order, activeDays[0..6], time?, timesPerWeek?, weeks?, archived, createdAt }`
 - `entries` — one per marked cell, id `"{routineId}|{YYYY-MM-DD}"`, `status`
-- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day, start, end }`
-  plus `weeks?` and the per-date exceptions `skipDates?` / `onlyDates?`; `day` is
-  0=Mon..4=Fri
-- `meta` — key/value (seed marker, schema version)
+- `lessons` — timetable entries, `{ id, name, kind, group?, room?, day, start, end, weeks?, skipDates?, onlyDates?, recorded?, absenceLimit?, absentDates?, coveredDates? }`;
+  `day` is 0=Mon..4=Fri
+- `todoFolders` — `{ id, name, emoji?, order, isDefault? }`
+- `todos` — `{ id, folderId?, title, note?, done, doneAt?, plannedFor?, plannedSince?, dueBy?, subject?, repeatWeekday?, completedDates?, order }`
+- `tombstones` — local delete markers sync uses to carry a delete to other
+  devices; dropped once pushed
+- `meta` — key/value (seed markers, schema version, sync cursors)
 
-Default routines and a default timetable are seeded once on first run — each
-when its own table is empty — and are fully editable afterwards.
-**Settings → Export / Import** does JSON backup & restore; **Reset** wipes and
-re-seeds.
+Default routines, a default timetable and default todo folders are seeded
+once on first run — each when its own table is empty — and are fully
+editable afterwards. **Settings → Export / Import** does JSON backup &
+restore; **Reset** wipes and re-seeds.
 
 ## Android / Google Play
 
