@@ -57,7 +57,7 @@ export function isFromEarlierWeek(dateISO: string, todayISO: string): boolean {
 }
 
 /** A tracked seminar: missing it costs one of a limited number of excuses. */
-function isTrackedSeminar(lesson: Lesson): boolean {
+export function isTrackedSeminar(lesson: Lesson): boolean {
   return lesson.kind === 'seminar' && !!lesson.absenceLimit
 }
 

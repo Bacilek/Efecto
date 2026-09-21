@@ -72,8 +72,13 @@ export function isOverdue(todo: Todo, todayISO: string): boolean {
   return !todo.done && !!todo.dueBy && todo.dueBy < todayISO
 }
 
-/** A day's status for something on a `SubjectDayList`-style day report. */
-export type DayStatus = 'done' | 'missed' | 'upcoming'
+/**
+ * A day's status for something on a `SubjectDayList`-style day report.
+ * `pending` is a lesson occurrence with nothing to lose by not being covered
+ * yet (a lecture, or any lesson without tracked attendance) — as opposed to
+ * `missed`, which is reserved for an actual recorded absence.
+ */
+export type DayStatus = 'done' | 'missed' | 'upcoming' | 'pending'
 
 /**
  * A plain (non-subject) todo's status on a specific day, given it has been

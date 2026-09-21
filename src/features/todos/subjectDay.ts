@@ -1,13 +1,22 @@
 import type { Lesson, Todo } from '@/db/db'
 import { fromISODate, toISODate, weekdayIndex } from '@/lib/date'
-import { coverOn, lessonsOn } from '@/features/timetable/cover'
+import { coverOn, isTrackedSeminar, lessonsOn } from '@/features/timetable/cover'
 import type { DayStatus } from './today'
 
 export type { DayStatus }
 
+/**
+ * A lecture (or any lesson without tracked attendance) has nothing to lose
+ * by sitting uncovered — it just carries forward to its next occurrence
+ * until it's actually watched, same as the live Today view already treats
+ * it. Only a *tracked* seminar's recorded absence counts as an actual miss;
+ * everything else uncovered reads as `pending`, not `missed`.
+ */
 function lessonStatus(lesson: Lesson, dateISO: string, todayISO: string): DayStatus {
   if (dateISO > todayISO) return 'upcoming'
-  return coverOn(lesson, dateISO) ? 'done' : 'missed'
+  if (coverOn(lesson, dateISO)) return 'done'
+  if (isTrackedSeminar(lesson) && lesson.absentDates?.includes(dateISO)) return 'missed'
+  return 'pending'
 }
 
 /**

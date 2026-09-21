@@ -121,7 +121,7 @@ export function DayRow({
         'flex h-5 w-5 items-center justify-center rounded border-[1.5px] text-xs',
         status === 'done' && 'border-done bg-done-dim text-parchment',
         status === 'missed' && 'border-missed-dim text-missed',
-        status === 'upcoming' && 'border-line text-dim',
+        (status === 'upcoming' || status === 'pending') && 'border-line text-dim',
       )}
     >
       {status === 'done' ? '✓' : status === 'missed' ? '✕' : ''}
@@ -149,11 +149,15 @@ export function DayRow({
   )
 }
 
-/** A group's dot: red if anything in it was missed, green once everything is done, grey for a future preview. */
+/**
+ * A group's dot: red if anything in it was actually missed, green once
+ * everything is done, grey otherwise — covering both a future preview and a
+ * still-`pending` lecture, neither of which is anything gone wrong.
+ */
 function groupStatus(group: SubjectDayGroup): 'missed' | 'done' | 'upcoming' {
   const statuses = [...group.occurrences.map((o) => o.status), ...group.todos.map((t) => t.status)]
   if (statuses.some((s) => s === 'missed')) return 'missed'
-  if (statuses.some((s) => s === 'upcoming')) return 'upcoming'
+  if (statuses.some((s) => s === 'upcoming' || s === 'pending')) return 'upcoming'
   return 'done'
 }
 
