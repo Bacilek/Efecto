@@ -67,10 +67,29 @@ export interface LessonOccurrence {
 }
 
 /**
+ * Was this lesson's cover state touched today? `coveredDates` only records
+ * *which* occurrence dates are covered, not when the tap happened, so this
+ * leans on the row's own `updatedAt` as a stand-in — imprecise if something
+ * else about the same lesson was also edited today, but that only ever errs
+ * towards keeping a row visible a little longer, never towards hiding one.
+ */
+function coveredToday(lesson: Lesson, todayISO: string): boolean {
+  return toISODate(new Date(lesson.updatedAt)) === todayISO
+}
+
+/**
  * Today's classes, plus every earlier lecture or lab nobody covered yet — it
  * carries over exactly like a planned todo: an open one keeps showing on every
  * later day until it's marked, while one covered on its own day drops off the
  * day after, the same as a todo ticked on an earlier day.
+ *
+ * "Its own day" means the day it was *ticked*, not the day it was scheduled
+ * for — a carried-over occurrence ticked today has to stay visible (struck
+ * through) for the rest of today the same as ticking it on its original day
+ * would, or a mistaken tap has nothing to undo: the row is just gone, and
+ * with it the whole subject group on Today if it was the only open thing in
+ * it. `coveredToday` is what tells "just ticked" apart from "covered a while
+ * ago, should already be gone".
  *
  * A tracked seminar (one with an `absenceLimit`) never lingers this way — see
  * `pendingSeminarAbsences`, which settles it straight into a recorded absence
@@ -84,9 +103,8 @@ export function lessonOccurrences(lessons: Lesson[], todayISO: string): LessonOc
   for (let d = semesterStart(); d <= rangeEnd; d = addDays(d, 1)) {
     const iso = toISODate(d)
     for (const lesson of lessonsOn(lessons, iso)) {
-      if (iso === todayISO) {
-        result.push({ lesson, date: iso })
-      } else if (!coverOn(lesson, iso) && !isTrackedSeminar(lesson)) {
+      if (isTrackedSeminar(lesson) && iso !== todayISO) continue
+      if (iso === todayISO || !coverOn(lesson, iso) || coveredToday(lesson, todayISO)) {
         result.push({ lesson, date: iso })
       }
     }
