@@ -364,7 +364,10 @@ export function TodosScreen() {
           {tab === 'today' ? (
             <>
               {hasDayPagerContent && (
-                <section className="px-4 pb-2">
+                // Extra bottom padding on a non-today day: the live list
+                // below (which normally reserves room for the floating "+")
+                // is hidden then, so this section has to clear it instead.
+                <section className={cn('px-4', viewDate === today ? 'pb-2' : 'pb-28')}>
                   <SubjectDayNav date={viewDate} onChange={setViewDate} />
                   {viewDate === today ? (
                     subjectGroups.length > 0 && (
@@ -391,36 +394,45 @@ export function TodosScreen() {
                   )}
                 </section>
               )}
-              {dueTodos.length > 0 && (
-                <DuesList
-                  todos={dueTodos}
-                  today={today}
-                  folderOf={folderOf}
-                  onToggle={(t) => void toggleDone(t)}
-                  onEdit={editTodo}
-                />
-              )}
-              {todayTodos.length === 0 ? (
-                <EmptyState
-                  title="Nothing planned for today."
-                  hint={'Tap ☀︎ on any task to pull it in, or add one with "+".'}
-                />
-              ) : (
-                <ul className="px-4 pb-28">
-                  {todayTodos.map((t) => (
-                    <TodoRow
-                      key={t.id}
-                      todo={t}
+              {/* The live Dues/folder-grouped list is about *today*, same as
+                  the "+" button and the badge count — it stays out of the way
+                  while the pager above is showing a different day, so that
+                  day's report isn't mixed in with today's still-current
+                  todos underneath it. */}
+              {viewDate === today && (
+                <>
+                  {dueTodos.length > 0 && (
+                    <DuesList
+                      todos={dueTodos}
                       today={today}
-                      folder={folderOf.get(t.id) ?? null}
-                      onToggle={() => void toggleDone(t)}
-                      onTogglePlanned={() => void togglePlanned(t)}
-                      onPushToTomorrow={() => void pushToTomorrow(t)}
-                      onPlanDate={(iso) => void planOn(t, iso)}
-                      onEdit={() => editTodo(t)}
+                      folderOf={folderOf}
+                      onToggle={(t) => void toggleDone(t)}
+                      onEdit={editTodo}
                     />
-                  ))}
-                </ul>
+                  )}
+                  {todayTodos.length === 0 ? (
+                    <EmptyState
+                      title="Nothing planned for today."
+                      hint={'Tap ☀︎ on any task to pull it in, or add one with "+".'}
+                    />
+                  ) : (
+                    <ul className="px-4 pb-28">
+                      {todayTodos.map((t) => (
+                        <TodoRow
+                          key={t.id}
+                          todo={t}
+                          today={today}
+                          folder={folderOf.get(t.id) ?? null}
+                          onToggle={() => void toggleDone(t)}
+                          onTogglePlanned={() => void togglePlanned(t)}
+                          onPushToTomorrow={() => void pushToTomorrow(t)}
+                          onPlanDate={(iso) => void planOn(t, iso)}
+                          onEdit={() => editTodo(t)}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </>
           ) : sections.length === 0 ? (
