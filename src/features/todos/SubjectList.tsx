@@ -121,7 +121,6 @@ export function SubjectList({
                                 #{KIND_LABELS[l.kind]}
                                 {week ?? ''}
                               </span>
-                              {l.group && <span className="truncate text-xs">/{l.group}</span>}
                               <span className={cn('shrink-0 text-xs', stale ? 'text-missed' : 'text-muted')}>
                                 ({formatShort(fromISODate(date))})
                               </span>
