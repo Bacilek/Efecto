@@ -50,6 +50,20 @@ export const KIND_NAMES: Record<LessonKind, string> = {
   lab: 'demo class',
 }
 
+/** Text colour matching a block's kind, for the Todos subject lists. */
+export const KIND_TEXT: Record<LessonKind, string> = {
+  lecture: 'text-lecture',
+  seminar: 'text-seminar',
+  lab: 'text-lab',
+}
+
+/** Lectures before seminars before labs, once a date or name already agrees. */
+export const KIND_ORDER: Record<LessonKind, number> = {
+  lecture: 0,
+  seminar: 1,
+  lab: 2,
+}
+
 /**
  * Backgrounds are fully opaque on purpose: the hour lines are painted behind the
  * blocks, so a translucent fill would let the grid show through a lesson that

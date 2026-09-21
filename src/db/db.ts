@@ -176,6 +176,14 @@ export interface Todo {
    * than being picked by hand each week.
    */
   repeatWeekday?: WeekdayIndex
+  /**
+   * Dates (`YYYY-MM-DD`) a *recurring* todo's cycle was completed — the due
+   * date of that cycle, not the day it was ticked. `dueBy` only ever points
+   * at the current/oldest unresolved cycle, so once `dueRolloverPatch` moves
+   * it forward, the earlier cycle needs somewhere to live for a past-day
+   * report (`features/todos/subjectDay.ts`) to still find it.
+   */
+  completedDates?: string[]
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number
@@ -293,6 +301,18 @@ db.version(5)
 // properties on an existing store, so the index is unchanged and no upgrade
 // hook is needed, same as `dueBy` / `plannedSince` before them.
 db.version(6).stores({
+  routines: 'id, order, updatedAt',
+  entries: 'id, routineId, date, updatedAt',
+  lessons: 'id, day, updatedAt',
+  todoFolders: 'id, order, updatedAt',
+  todos: 'id, order, updatedAt',
+  tombstones: 'id, deletedAt',
+  meta: 'key',
+})
+
+// v7 adds `completedDates` to todos — another new optional property on an
+// existing store, so the index is unchanged and no upgrade hook is needed.
+db.version(7).stores({
   routines: 'id, order, updatedAt',
   entries: 'id, routineId, date, updatedAt',
   lessons: 'id, day, updatedAt',

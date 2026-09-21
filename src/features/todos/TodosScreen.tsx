@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, stamp, type Todo, type TodoFolder } from '@/db/db'
+import { db, newId, stamp, type Lesson, type Todo, type TodoFolder } from '@/db/db'
 import { removeRecord, removeRecords } from '@/db/remove'
 import { cn } from '@/lib/cn'
 import { formatShort, fromISODate, todayISO } from '@/lib/date'
@@ -9,9 +9,12 @@ import { EmptyState } from '@/ui/EmptyState'
 import { TodoEditor, type TodoDraft } from './TodoEditor'
 import { FolderEditor, type FolderDraft } from './FolderEditor'
 import { SubjectList } from './SubjectList'
+import { SubjectDayNav } from './SubjectDayNav'
+import { SubjectDayList } from './SubjectDayList'
 import { DuesList } from './DuesList'
 import { buildSubjectGroups } from './subjects'
-import { coverOn, lessonOccurrences, pendingSeminarAbsences } from '@/features/timetable/cover'
+import { buildSubjectDayGroups } from './subjectDay'
+import { coverOn, coverPatch, lessonOccurrences, pendingSeminarAbsences } from '@/features/timetable/cover'
 import { toggledAbsence } from '@/features/timetable/absence'
 import {
   dueRolloverPatch,
@@ -48,6 +51,8 @@ export function TodosScreen() {
   const [folderEditor, setFolderEditor] = useState<FolderTarget>(null)
   /** which folder is open on the All tab; null = the tile overview */
   const [openKey, setOpenKey] = useState<string | null>(null)
+  /** the day `SubjectDayNav` is paged to; today by default */
+  const [viewDate, setViewDate] = useState(todayISO())
 
   const folders = useLiveQuery(() => db.todoFolders.orderBy('order').toArray(), [])
   const todos = useLiveQuery(() => db.todos.toArray(), [])
@@ -92,6 +97,21 @@ export function TodosScreen() {
   const lessonSubjects = useMemo(
     () => [...new Set((lessons ?? []).map((l) => l.name))].sort((a, b) => a.localeCompare(b)),
     [lessons],
+  )
+
+  // Whether there's anything for the day pager to ever show — hidden
+  // entirely rather than an empty box when the user has no timetable and no
+  // subject-tagged todos at all.
+  const hasSubjectContent =
+    (lessons?.length ?? 0) > 0 || (todos ?? []).some((t) => t.subject !== undefined)
+
+  // A day other than today is a fixed-day report (`buildSubjectDayGroups`),
+  // not the live worklist — see `subjectDay.ts` for why those are kept as
+  // separate code paths.
+  const dayGroups = useMemo(
+    () =>
+      viewDate === today ? [] : buildSubjectDayGroups(lessons ?? [], todos ?? [], viewDate, today),
+    [lessons, todos, viewDate, today],
   )
 
   // A tracked seminar left uncovered once its day has passed doesn't linger on
@@ -142,6 +162,32 @@ export function TodosScreen() {
     await db.todos.update(todo.id, {
       done: !todo.done,
       doneAt: todo.done ? undefined : Date.now(),
+    })
+  }
+
+  /** Correct a past (or preview a future) day's class occurrence from the day pager. */
+  async function toggleDayOccurrence(lesson: Lesson, covered: boolean) {
+    await db.lessons.update(lesson.id, coverPatch(lesson, viewDate, covered))
+  }
+
+  /**
+   * Mark a subject todo's cycle on `viewDate` done or not, from the day
+   * pager. A one-off todo's `dueBy` never moves, so this is just its normal
+   * done flag. For a recurring one, `viewDate` equalling the current `dueBy`
+   * means this *is* the live, still-open cycle — ticking it here is exactly
+   * ticking it on Today, and the existing `dueRolloverPatch` effect logs it
+   * into `completedDates` and advances `dueBy` on the next render, same as
+   * always. An *earlier* cycle (one a later `dueBy` has already superseded)
+   * only needs its own log entry touched — `dueBy` stays where it is.
+   */
+  async function toggleDayTodo(todo: Todo, done: boolean) {
+    if (todo.repeatWeekday === undefined || viewDate === todo.dueBy) {
+      await db.todos.update(todo.id, { done, doneAt: done ? Date.now() : undefined })
+      return
+    }
+    const dates = todo.completedDates ?? []
+    await db.todos.update(todo.id, {
+      completedDates: done ? [...dates, viewDate] : dates.filter((d) => d !== viewDate),
     })
   }
 
@@ -286,13 +332,26 @@ export function TodosScreen() {
 
           {tab === 'today' ? (
             <>
-              {subjectGroups.length > 0 && (
-                <SubjectList
-                  groups={subjectGroups}
-                  today={today}
-                  onToggleTodo={(t) => void toggleDone(t)}
-                  onEditTodo={editTodo}
-                />
+              {hasSubjectContent && (
+                <section className="px-4 pb-2">
+                  <SubjectDayNav date={viewDate} onChange={setViewDate} />
+                  {viewDate === today ? (
+                    subjectGroups.length > 0 && (
+                      <SubjectList
+                        groups={subjectGroups}
+                        today={today}
+                        onToggleTodo={(t) => void toggleDone(t)}
+                        onEditTodo={editTodo}
+                      />
+                    )
+                  ) : (
+                    <SubjectDayList
+                      groups={dayGroups}
+                      onToggleOccurrence={(l, covered) => void toggleDayOccurrence(l, covered)}
+                      onToggleTodo={(t, done) => void toggleDayTodo(t, done)}
+                    />
+                  )}
+                </section>
               )}
               {dueTodos.length > 0 && (
                 <DuesList

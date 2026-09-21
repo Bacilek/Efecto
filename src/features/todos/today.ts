@@ -94,5 +94,8 @@ export function dueRolloverPatch(todo: Todo, todayISO: string): Partial<Todo> | 
     dueBy: nextOccurrenceISO(todo.repeatWeekday, todayISO),
     done: false,
     doneAt: undefined,
+    // The cycle that's rolling over would otherwise be lost — `dueBy` is
+    // about to move past it, and nothing else remembers it was done.
+    completedDates: [...(todo.completedDates ?? []), todo.dueBy],
   }
 }
