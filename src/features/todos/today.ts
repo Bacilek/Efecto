@@ -1,5 +1,5 @@
 import type { Todo } from '@/db/db'
-import { addDays, fromISODate, toISODate } from '@/lib/date'
+import { addDays, fromISODate, toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
 
 /**
  * Is the todo on the **Today** tab?
@@ -70,4 +70,29 @@ export function isDue(todo: Todo, todayISO: string): boolean {
 /** A due task whose deadline has passed and is still open. */
 export function isOverdue(todo: Todo, todayISO: string): boolean {
   return !todo.done && !!todo.dueBy && todo.dueBy < todayISO
+}
+
+/** The next date on or after `todayISO` that lands on `weekday`. */
+export function nextOccurrenceISO(weekday: WeekdayIndex, todayISO: string): string {
+  const today = fromISODate(todayISO)
+  const diff = (weekday - weekdayIndex(today) + 7) % 7
+  return toISODate(addDays(today, diff))
+}
+
+/**
+ * Re-arms a recurring due todo for its next cycle once the one just ticked
+ * has fully passed. Deliberately only fires on a *ticked* todo whose due day
+ * is behind — an unticked (overdue) one stays "overdue since ..." exactly
+ * like a one-off Dues todo until the user ticks it, rather than silently
+ * rolling a missed week out from under them.
+ */
+export function dueRolloverPatch(todo: Todo, todayISO: string): Partial<Todo> | null {
+  if (todo.repeatWeekday === undefined || !todo.done || !todo.dueBy || todo.dueBy >= todayISO) {
+    return null
+  }
+  return {
+    dueBy: nextOccurrenceISO(todo.repeatWeekday, todayISO),
+    done: false,
+    doneAt: undefined,
+  }
 }

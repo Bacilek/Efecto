@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Todo, TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { formatShort, fromISODate, todayISO } from '@/lib/date'
+import { DAY_LABELS, formatShort, fromISODate, todayISO, type WeekdayIndex } from '@/lib/date'
+import { nextOccurrenceISO } from './today'
 
 export interface TodoDraft {
   title: string
@@ -12,11 +13,18 @@ export interface TodoDraft {
   plannedFor: string | null
   /** `YYYY-MM-DD` deadline; null = no due date */
   dueBy: string | null
+  /** subject code matching a `Lesson.name`; null = untagged */
+  subject: string | null
+  /** 0=Mon..6=Sun; null = one-off, not a recurring Dues item */
+  repeatWeekday: WeekdayIndex | null
 }
+
+const ALL_DAYS: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6]
 
 export function TodoEditor({
   todo,
   folders,
+  subjects,
   initialFolderId,
   initialPlannedFor,
   onSave,
@@ -26,6 +34,8 @@ export function TodoEditor({
   /** existing todo to edit, or null for a new one */
   todo: Todo | null
   folders: TodoFolder[]
+  /** distinct subject codes the timetable knows about, for the Subject chips */
+  subjects: string[]
   /** folder a new todo lands in — the one whose "+" was tapped */
   initialFolderId: string | null
   /** set for a todo added from the Today tab, so it lands there */
@@ -39,6 +49,8 @@ export function TodoEditor({
   const [folderId, setFolderId] = useState<string | null>(null)
   const [plannedFor, setPlannedFor] = useState<string | null>(null)
   const [dueBy, setDueBy] = useState<string | null>(null)
+  const [subject, setSubject] = useState<string | null>(null)
+  const [repeatWeekday, setRepeatWeekday] = useState<WeekdayIndex | null>(null)
 
   useEffect(() => {
     setTitle(todo?.title ?? '')
@@ -46,16 +58,36 @@ export function TodoEditor({
     setFolderId(todo ? (todo.folderId ?? null) : initialFolderId)
     setPlannedFor(todo ? (todo.plannedFor ?? null) : initialPlannedFor)
     setDueBy(todo?.dueBy ?? null)
+    setSubject(todo?.subject ?? null)
+    setRepeatWeekday(todo?.repeatWeekday ?? null)
   }, [todo, initialFolderId, initialPlannedFor])
 
   // With a catch-all folder around, "Unsorted" is only worth offering while
   // there are no folders at all, or to a todo that is already sitting there.
   const allowUnsorted = folders.length === 0 || !!(todo && !todo.folderId)
 
+  // A recurring todo's deadline is computed, not picked — the next occurrence
+  // of the chosen weekday, unless the weekday hasn't changed since this todo
+  // already had one (rollover then owns it going forward).
+  const computedDueBy =
+    repeatWeekday !== null
+      ? todo?.repeatWeekday === repeatWeekday && todo.dueBy
+        ? todo.dueBy
+        : nextOccurrenceISO(repeatWeekday, todayISO())
+      : null
+
   function submit() {
     const trimmed = title.trim()
     if (!trimmed) return
-    onSave({ title: trimmed, note: note.trim(), folderId, plannedFor, dueBy })
+    onSave({
+      title: trimmed,
+      note: note.trim(),
+      folderId,
+      plannedFor,
+      dueBy: repeatWeekday !== null ? computedDueBy : dueBy,
+      subject,
+      repeatWeekday,
+    })
   }
 
   return (
@@ -104,18 +136,64 @@ export function TodoEditor({
         </div>
 
         <label className="mb-1.5 block text-xs text-muted">Due</label>
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          <Chip active={dueBy === null} onClick={() => setDueBy(null)}>
-            No deadline
-          </Chip>
-          <DateChip
-            value={dueBy}
-            onChange={setDueBy}
-            icon="⏰"
-            label="Due date"
-            ariaLabel="Due date"
-          />
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {repeatWeekday !== null ? (
+            <span className="flex h-9 items-center rounded-md border border-line px-3 text-xs text-dim">
+              ⏰ next {formatShort(fromISODate(computedDueBy!))}
+            </span>
+          ) : (
+            <>
+              <Chip active={dueBy === null} onClick={() => setDueBy(null)}>
+                No deadline
+              </Chip>
+              <DateChip
+                value={dueBy}
+                onChange={setDueBy}
+                icon="⏰"
+                label="Due date"
+                ariaLabel="Due date"
+              />
+            </>
+          )}
         </div>
+
+        <label className="mb-1.5 block text-xs text-muted">Repeats</label>
+        <div className="mb-1.5 flex gap-1.5">
+          <Chip active={repeatWeekday === null} onClick={() => setRepeatWeekday(null)}>
+            One-off
+          </Chip>
+          <Chip
+            active={repeatWeekday !== null}
+            onClick={() => setRepeatWeekday((prev) => prev ?? 0)}
+          >
+            Weekly
+          </Chip>
+        </div>
+        {repeatWeekday !== null && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {ALL_DAYS.map((d) => (
+              <Chip key={d} active={repeatWeekday === d} onClick={() => setRepeatWeekday(d)}>
+                {DAY_LABELS[d]}
+              </Chip>
+            ))}
+          </div>
+        )}
+
+        {subjects.length > 0 && (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">Subject</label>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              <Chip active={subject === null} onClick={() => setSubject(null)}>
+                None
+              </Chip>
+              {subjects.map((s) => (
+                <Chip key={s} active={subject === s} onClick={() => setSubject(s)}>
+                  {s}
+                </Chip>
+              ))}
+            </div>
+          </>
+        )}
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
         <div className="mb-4 flex flex-wrap gap-1.5">

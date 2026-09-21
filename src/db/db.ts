@@ -162,6 +162,20 @@ export interface Todo {
    * particular day the way a planned one does.
    */
   dueBy?: string
+  /**
+   * Subject code matching a `Lesson.name` (e.g. "PB016") — purely a Today-tab
+   * grouping tag, independent of `folderId`. A todo carrying this stacks
+   * under that subject's collapsible group alongside its class occurrences
+   * instead of showing in the plain folder-grouped list or `DuesList`.
+   */
+  subject?: string
+  /**
+   * 0=Mon..6=Sun, same convention as `Lesson.day`. When set, this is a
+   * recurring Dues todo: `dueBy` auto-advances to the next occurrence of this
+   * weekday once a ticked cycle's day has passed (`dueRolloverPatch`), rather
+   * than being picked by hand each week.
+   */
+  repeatWeekday?: WeekdayIndex
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number
@@ -274,6 +288,19 @@ db.version(5)
         })
     }
   })
+
+// v6 adds `subject` and `repeatWeekday` to todos — both new optional
+// properties on an existing store, so the index is unchanged and no upgrade
+// hook is needed, same as `dueBy` / `plannedSince` before them.
+db.version(6).stores({
+  routines: 'id, order, updatedAt',
+  entries: 'id, routineId, date, updatedAt',
+  lessons: 'id, day, updatedAt',
+  todoFolders: 'id, order, updatedAt',
+  todos: 'id, order, updatedAt',
+  tombstones: 'id, deletedAt',
+  meta: 'key',
+})
 
 const writeListeners = new Set<() => void>()
 

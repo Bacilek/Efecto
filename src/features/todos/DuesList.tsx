@@ -67,6 +67,7 @@ export function DuesList({
                       <span>{folder.emoji ? `${folder.emoji} ${folder.name}` : folder.name}</span>
                     )}
                     <span className={overdue ? 'text-missed' : 'text-brass-dim'}>
+                      {t.repeatWeekday !== undefined && '↻ '}
                       {overdue ? 'overdue since ' : 'due '}
                       {formatShort(fromISODate(t.dueBy!))}
                     </span>
