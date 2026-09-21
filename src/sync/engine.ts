@@ -84,10 +84,21 @@ async function push(userId: string): Promise<number> {
     },
   )
 
-  const payload: Array<Record<string, unknown>> = []
+  // Keyed by `${kind}|${id}` rather than pushed to a plain array: a row and a
+  // tombstone for the same id can still both reach this point (e.g. a pull
+  // resurrecting a row — see `applyRemote` — racing a not-yet-cleared local
+  // tombstone for it), and Postgres rejects two rows with the same (kind, id)
+  // in one upsert statement outright. This is the boundary to Supabase, so
+  // the later of the two — the one that actually reflects what happened last
+  // on this device — is what gets sent.
+  const payload = new Map<string, Record<string, unknown>>()
+  function offer(key: string, updatedAt: number, entry: Record<string, unknown>) {
+    const existing = payload.get(key)
+    if (!existing || updatedAt >= (existing.updated_at as number)) payload.set(key, entry)
+  }
   for (const kind of SYNCED_TABLES) {
     for (const row of dirty.get(kind)!) {
-      payload.push({
+      offer(`${kind}|${row.id}`, row.updatedAt, {
         user_id: userId,
         kind,
         id: row.id,
@@ -98,7 +109,7 @@ async function push(userId: string): Promise<number> {
     }
   }
   for (const t of graves) {
-    payload.push({
+    offer(`${t.table}|${t.recordId}`, t.deletedAt, {
       user_id: userId,
       kind: t.table,
       id: t.recordId,
@@ -108,11 +119,12 @@ async function push(userId: string): Promise<number> {
     })
   }
 
-  if (payload.length > 0) {
-    for (let i = 0; i < payload.length; i += PAGE) {
+  const rows = [...payload.values()]
+  if (rows.length > 0) {
+    for (let i = 0; i < rows.length; i += PAGE) {
       const { error } = await supabase!
         .from('records')
-        .upsert(payload.slice(i, i + PAGE), { onConflict: 'user_id,kind,id' })
+        .upsert(rows.slice(i, i + PAGE), { onConflict: 'user_id,kind,id' })
       if (error) throw new Error(`Push failed: ${error.message}`)
     }
   }
@@ -121,7 +133,7 @@ async function push(userId: string): Promise<number> {
   // the local copy has done its job and would only grow forever.
   await db.tombstones.where('deletedAt').belowOrEqual(cursor).delete()
   await metaSet(PUSH_CURSOR, cursor)
-  return payload.length
+  return rows.length
 }
 
 async function pull(): Promise<number> {
@@ -157,9 +169,18 @@ async function applyRemote(rows: RemoteRecord[]): Promise<number> {
 
   for (const remote of rows) {
     if (!(SYNCED_TABLES as readonly string[]).includes(remote.kind)) continue
-    const table = db.table<Row>(remote.kind as SyncedTable)
+    const kind = remote.kind as SyncedTable
+    const table = db.table<Row>(kind)
     const local = await table.get(remote.id)
     if (local && local.updatedAt >= remote.updated_at) continue
+
+    // No local row doesn't mean no local opinion: a pending delete for this id
+    // (tombstoned here but not yet pushed) is this device's own later word on
+    // it, and has to win the same way a live local edit would — otherwise an
+    // older remote edit could resurrect something just deleted here.
+    const tombstoneId = `${kind}|${remote.id}`
+    const tombstone = local ? undefined : await db.tombstones.get(tombstoneId)
+    if (tombstone && tombstone.deletedAt >= remote.updated_at) continue
 
     if (remote.deleted) {
       // No tombstone: the server already holds one, and writing another would
@@ -167,6 +188,11 @@ async function applyRemote(rows: RemoteRecord[]): Promise<number> {
       if (local) await table.delete(remote.id)
     } else if (remote.data) {
       await table.put({ ...(remote.data as Row), id: remote.id, updatedAt: remote.updated_at })
+      // The row we just wrote is newer than any pending local delete for it
+      // (checked above), so that delete is moot — drop it, or the next push
+      // would send the tombstone right back out alongside the row, which
+      // Postgres rejects as two rows for the same (kind, id) in one upsert.
+      if (tombstone) await db.tombstones.delete(tombstoneId)
     }
     highest = Math.max(highest, remote.updated_at)
     applied++
