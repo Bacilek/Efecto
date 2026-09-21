@@ -13,6 +13,7 @@ import { DAY_START, KINDS, KIND_LABELS, KIND_NAMES, KIND_STYLES } from './layout
 import { SemesterNav } from './SemesterNav'
 import { toggledOccurrence } from './occurrence'
 import { toggledAbsence } from './absence'
+import { coverOn, coverPatch } from './cover'
 import { semesterEnd, semesterStart, semesterWeekCount } from './semester'
 import { useSemesterWeek } from './useSemesterWeek'
 
@@ -67,6 +68,19 @@ export function TimetableScreen() {
     const date = editor?.date
     if (!target || !date) return
     await db.lessons.update(target.id, toggledAbsence(target, date))
+    setEditor(null)
+  }
+
+  /**
+   * Mark (or unmark) the tapped date covered — the same flag Today's checkbox
+   * sets. Reachable here too so a date that's already dropped off Today (or
+   * was ticked by mistake) can still be reopened.
+   */
+  async function toggleCover() {
+    const target = editor?.lesson
+    const date = editor?.date
+    if (!target || !date) return
+    await db.lessons.update(target.id, coverPatch(target, date, !coverOn(target, date)))
     setEditor(null)
   }
 
@@ -170,6 +184,7 @@ export function TimetableScreen() {
           onSave={(d) => void saveLesson(d)}
           onToggleAbsence={() => void toggleAbsence()}
           onToggleOccurrence={() => void toggleOccurrence()}
+          onToggleCover={() => void toggleCover()}
           onDelete={() => void deleteLesson()}
           onClose={() => setEditor(null)}
         />

@@ -10,6 +10,7 @@ import {
 } from '@/lib/date'
 import { minutesToTime, timeToMinutes } from '@/lib/time'
 import { CameraIcon } from '@/ui/CameraIcon'
+import { coverOn } from './cover'
 import { happensOn } from './occurrence'
 import { absenceState, wasAbsent } from './absence'
 import { DAY_END, DAYS, DAY_START, KINDS, KIND_LABELS, KIND_STYLES } from './layout'
@@ -45,6 +46,7 @@ export function LessonEditor({
   onSave,
   onToggleAbsence,
   onToggleOccurrence,
+  onToggleCover,
   onDelete,
   onClose,
 }: {
@@ -61,6 +63,8 @@ export function LessonEditor({
   onToggleAbsence: () => void
   /** cancel or restore just `occurrenceDate` */
   onToggleOccurrence: () => void
+  /** mark `occurrenceDate` covered or not, the same flag Today's checkbox sets */
+  onToggleCover: () => void
   onDelete: () => void
   onClose: () => void
 }) {
@@ -276,6 +280,7 @@ export function LessonEditor({
             parity={occurrenceParity}
             onToggle={onToggleOccurrence}
             onToggleAbsence={onToggleAbsence}
+            onToggleCover={onToggleCover}
           />
         )}
 
@@ -316,16 +321,19 @@ function OccurrenceRow({
   parity,
   onToggle,
   onToggleAbsence,
+  onToggleCover,
 }: {
   lesson: Lesson
   dateISO: string
   parity: WeekParity | null
   onToggle: () => void
   onToggleAbsence: () => void
+  onToggleCover: () => void
 }) {
   const happens = happensOn(lesson, dateISO, parity)
   const absences = absenceState(lesson)
   const absent = wasAbsent(lesson, dateISO)
+  const covered = coverOn(lesson, dateISO)
   const skipDates = lesson.skipDates ?? []
   const list = (dates: string[]) => dates.map((d) => formatShort(fromISODate(d))).join(', ')
 
@@ -358,6 +366,29 @@ function OccurrenceRow({
           )}
         >
           {happens ? 'Cancel this one' : 'Restore this one'}
+        </button>
+      </div>
+
+      {/* The same flag the Today tab's checkbox sets — reachable here too, so
+          an accidental tap (or wanting it back open to tick once actually
+          done) has somewhere to be undone, since a covered-and-not-today
+          occurrence no longer shows on Today at all. */}
+      <div className="mt-2 flex items-center justify-between gap-3 border-t border-line-soft pt-2">
+        <p className="min-w-0 text-[11px] text-muted">
+          {covered ? 'Marked done on Today' : 'Not yet marked done'}
+        </p>
+        <button
+          type="button"
+          onClick={onToggleCover}
+          disabled={!happens}
+          className={cn(
+            'shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors disabled:opacity-40',
+            covered
+              ? 'border-line text-muted hover:border-muted'
+              : 'border-done-dim text-done hover:border-done',
+          )}
+        >
+          {covered ? 'Not done yet' : 'Mark as done'}
         </button>
       </div>
 
