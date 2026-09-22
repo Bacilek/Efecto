@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react'
 import { useMemo } from 'react'
 import type { Todo } from '@/db/db'
 import { cn } from '@/lib/cn'
-import { DAY_LABELS, formatShort, weekdayIndex, type WeekdayIndex } from '@/lib/date'
+import { DAY_LABELS, formatShort, toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
 import type { TimeWindow } from '@/lib/timeGrid'
 import { useNow } from '@/lib/useNow'
 import {
@@ -132,18 +132,46 @@ export function CalendarGrid({
 
           {DAYS.map((d, i) => {
             const cut = showNow ? elapsedPct(d, now, win) : 0
+            const dateISO = toISODate(dates[i])
+            const dayAllDay = todos.filter((t) => t.plannedFor === dateISO && t.allDay)
             return (
               <div
                 key={d}
                 className={cn('absolute inset-x-0', i > 0 && 'border-t border-line-soft')}
                 style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
               >
+                {/* An all-day todo tints its whole day rather than sitting in a
+                    strip of its own — translucent, so it layers over the hour
+                    ticks and any other day's "today" wash without hiding
+                    either. The label on top is the only way to tell what it
+                    is and to tap it; the rest of the row still adds a new
+                    timed todo, same as any other day. */}
+                {dayAllDay.length > 0 && (
+                  <div className="absolute inset-0 bg-brass-dim/25" aria-hidden />
+                )}
                 <button
                   type="button"
                   className="absolute inset-0 h-full w-full"
                   onClick={(e) => slotTap(d, e)}
                   aria-label={`Add a todo on ${DAY_LABELS[d]}`}
                 />
+                {dayAllDay.length > 0 && (
+                  <div className="pointer-events-none absolute inset-y-0 left-1 flex max-w-[45%] flex-col justify-center gap-0.5">
+                    {dayAllDay.map((todo) => (
+                      <button
+                        key={todo.id}
+                        type="button"
+                        onClick={() => onTapTodo(todo)}
+                        className={cn(
+                          'pointer-events-auto truncate text-left text-[11px] leading-tight underline decoration-brass-dim decoration-dotted underline-offset-2',
+                          todo.done ? 'text-dim line-through' : 'text-parchment',
+                        )}
+                      >
+                        {todo.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {byDay[d].map(({ todo, left, width, top, height }) => {
                   const elapsed =
                     width > 0 ? Math.min(100, Math.max(0, ((cut - left) / width) * 100)) : 0

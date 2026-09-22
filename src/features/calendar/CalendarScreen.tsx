@@ -7,7 +7,6 @@ import { minutesToTime } from '@/lib/time'
 import { ScreenHeader } from '@/ui/ScreenHeader'
 import { TodoEditor, type TodoDraft } from '@/features/todos/TodoEditor'
 import { planPatch } from '@/features/todos/today'
-import { AllDayStrip } from './AllDayStrip'
 import { CalendarGrid } from './CalendarGrid'
 import { CalendarWeekNav } from './CalendarWeekNav'
 import { useCalendarWeek } from './useCalendarWeek'
@@ -103,13 +102,6 @@ export function CalendarScreen() {
       <ScreenHeader title="Calendar" />
 
       <CalendarWeekNav week={week} />
-
-      <AllDayStrip
-        todos={todos ?? []}
-        dates={week.dates}
-        showToday={week.isCurrent}
-        onTapTodo={editTodo}
-      />
 
       <CalendarGrid
         todos={todos ?? []}
