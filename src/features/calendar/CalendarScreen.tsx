@@ -28,7 +28,15 @@ export function CalendarScreen() {
   const week = useCalendarWeek()
   const todos = useLiveQuery(() => db.todos.toArray(), [])
   const folders = useLiveQuery(() => db.todoFolders.orderBy('order').toArray(), [])
+  const lessons = useLiveQuery(() => db.lessons.toArray(), [])
   const win = useMemo(() => windowFor(expanded), [expanded])
+
+  // The distinct subject codes the timetable knows about, for the editor's
+  // Subject picker — same list `TodosScreen` builds.
+  const lessonSubjects = useMemo(
+    () => [...new Set((lessons ?? []).map((l) => l.name))].sort((a, b) => a.localeCompare(b)),
+    [lessons],
+  )
 
   // Where a todo added here lands: the catch-all folder, else the first one.
   const defaultFolderId =
@@ -52,6 +60,8 @@ export function CalendarScreen() {
         note: draft.note || undefined,
         folderId: draft.folderId ?? undefined,
         dueBy: draft.dueBy ?? undefined,
+        subject: draft.subject ?? undefined,
+        repeatWeekday: draft.repeatWeekday ?? undefined,
         allDay: draft.allDay || undefined,
         startTime: draft.startTime ?? undefined,
         endTime: draft.endTime ?? undefined,
@@ -68,6 +78,8 @@ export function CalendarScreen() {
         note: draft.note || undefined,
         done: false,
         dueBy: draft.dueBy ?? undefined,
+        subject: draft.subject ?? undefined,
+        repeatWeekday: draft.repeatWeekday ?? undefined,
         allDay: draft.allDay || undefined,
         startTime: draft.startTime ?? undefined,
         endTime: draft.endTime ?? undefined,
@@ -126,6 +138,7 @@ export function CalendarScreen() {
         <TodoEditor
           todo={editor.todo}
           folders={folders ?? []}
+          subjects={lessonSubjects}
           initialFolderId={editor.todo ? (editor.todo.folderId ?? null) : defaultFolderId}
           initialPlannedFor={editor.plannedFor}
           initialAllDay={editor.allDay}
