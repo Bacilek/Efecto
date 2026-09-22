@@ -1,6 +1,7 @@
 import type { Lesson, LessonKind } from '@/db/db'
-import { toISODate, weekdayIndex, type WeekdayIndex, type WeekParity } from '@/lib/date'
+import { toISODate, type WeekdayIndex, type WeekParity } from '@/lib/date'
 import { timeToMinutes } from '@/lib/time'
+import { elapsedPctIn, nowMarkerIn, pctOfWindow, type TimeWindow } from '@/lib/timeGrid'
 import { happensOn } from './occurrence'
 
 /** The grid window: Mon–Fri, 08:00–20:00. */
@@ -11,6 +12,8 @@ export const HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, 
 
 /** Minutes the grid spans. */
 export const SPAN = DAY_END - DAY_START
+
+const WINDOW: TimeWindow = { start: DAY_START, end: DAY_END }
 
 /**
  * Rows are days and the horizontal axis is time, matching the routine grid's
@@ -32,7 +35,7 @@ export const HOUR_PCT = 100 / HOUR_COUNT
 
 /** Where `minutes` sits along the horizontal axis, as a 0..100 percentage. */
 export function pctOfDay(minutes: number): number {
-  return ((minutes - DAY_START) / SPAN) * 100
+  return pctOfWindow(minutes, WINDOW)
 }
 
 export const KINDS: LessonKind[] = ['lecture', 'seminar', 'lab']
@@ -90,10 +93,6 @@ export interface Placed {
 
 function clampToWindow(minutes: number): number {
   return Math.min(Math.max(minutes, DAY_START), DAY_END)
-}
-
-function minutesOfDay(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes()
 }
 
 /**
@@ -173,13 +172,7 @@ export interface NowMarker {
  * weekday template — there is no row to point at) and outside 08:00–20:00.
  */
 export function nowMarker(now: Date): NowMarker | null {
-  const day = weekdayIndex(now)
-  if (day > 4) return null
-
-  const minutes = minutesOfDay(now)
-  if (minutes < DAY_START || minutes > DAY_END) return null
-
-  return { day, left: pctOfDay(minutes) }
+  return nowMarkerIn(now, WINDOW, DAYS.length)
 }
 
 /**
@@ -190,12 +183,7 @@ export function nowMarker(now: Date): NowMarker | null {
  * morning would say nothing useful — by then the week reads as the one ahead.
  */
 export function elapsedPct(day: WeekdayIndex, now: Date): number {
-  const today = weekdayIndex(now)
-  if (today > 4) return 0
-  if (day < today) return 100
-  if (day > today) return 0
-
-  return Math.min(Math.max(pctOfDay(minutesOfDay(now)), 0), 100)
+  return elapsedPctIn(day, now, WINDOW, DAYS.length)
 }
 
 /**
