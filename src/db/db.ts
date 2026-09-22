@@ -128,8 +128,9 @@ export interface TodoFolder {
 }
 
 /**
- * A task with no date or time. Deliberately dateless for now: anything that
- * belongs on a day goes to the calendar instead.
+ * A task, optionally pinned to a day (`plannedFor`) and, on that day, either
+ * spanning it (`allDay`) or a timed block (`startTime`/`endTime`) — that pin is
+ * what the Calendar view renders, rather than a separate event type.
  */
 export interface Todo {
   id: string
@@ -184,6 +185,20 @@ export interface Todo {
    * report (`features/todos/subjectDay.ts`) to still find it.
    */
   completedDates?: string[]
+  /**
+   * Spans the whole day on the Calendar view, mutually exclusive with
+   * `startTime`/`endTime`. Meaningless without `plannedFor`. Unindexed, like
+   * `dueBy`/`plannedSince` — no store change needed for an optional field.
+   */
+  allDay?: boolean
+  /**
+   * "HH:MM", set together with `endTime` — places the todo as a timed block on
+   * the Calendar grid instead of the all-day strip. Only meaningful alongside
+   * `plannedFor` and with `allDay` unset.
+   */
+  startTime?: string
+  /** "HH:MM", after `startTime`. */
+  endTime?: string
   /** manual sort order within the folder (lower first) */
   order: number
   createdAt: number
@@ -313,6 +328,18 @@ db.version(6).stores({
 // v7 adds `completedDates` to todos — another new optional property on an
 // existing store, so the index is unchanged and no upgrade hook is needed.
 db.version(7).stores({
+  routines: 'id, order, updatedAt',
+  entries: 'id, routineId, date, updatedAt',
+  lessons: 'id, day, updatedAt',
+  todoFolders: 'id, order, updatedAt',
+  todos: 'id, order, updatedAt',
+  tombstones: 'id, deletedAt',
+  meta: 'key',
+})
+
+// v8 adds `allDay`/`startTime`/`endTime` to todos, for the Calendar view —
+// same shape as v6/v7, no index or upgrade hook needed.
+db.version(8).stores({
   routines: 'id, order, updatedAt',
   entries: 'id, routineId, date, updatedAt',
   lessons: 'id, day, updatedAt',

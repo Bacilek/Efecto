@@ -17,6 +17,11 @@ export interface TodoDraft {
   subject: string | null
   /** 0=Mon..6=Sun; null = one-off, not a recurring Dues item */
   repeatWeekday: WeekdayIndex | null
+  /** spans the whole day on Calendar; mutually exclusive with the times below */
+  allDay: boolean
+  /** "HH:MM", set together with `endTime`; null = no timed block */
+  startTime: string | null
+  endTime: string | null
 }
 
 const ALL_DAYS: WeekdayIndex[] = [0, 1, 2, 3, 4, 5, 6]
@@ -27,6 +32,9 @@ export function TodoEditor({
   subjects,
   initialFolderId,
   initialPlannedFor,
+  initialAllDay,
+  initialStartTime,
+  initialEndTime,
   onSave,
   onDelete,
   onClose,
@@ -40,6 +48,11 @@ export function TodoEditor({
   initialFolderId: string | null
   /** set for a todo added from the Today tab, so it lands there */
   initialPlannedFor: string | null
+  /** set for a todo added by tapping the Calendar's all-day strip */
+  initialAllDay?: boolean
+  /** set for a todo added by tapping an empty Calendar grid slot */
+  initialStartTime?: string | null
+  initialEndTime?: string | null
   onSave: (draft: TodoDraft) => void
   onDelete: () => void
   onClose: () => void
@@ -51,6 +64,9 @@ export function TodoEditor({
   const [dueBy, setDueBy] = useState<string | null>(null)
   const [subject, setSubject] = useState<string | null>(null)
   const [repeatWeekday, setRepeatWeekday] = useState<WeekdayIndex | null>(null)
+  const [allDay, setAllDay] = useState(false)
+  const [startTime, setStartTime] = useState<string | null>(null)
+  const [endTime, setEndTime] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(todo?.title ?? '')
@@ -60,7 +76,17 @@ export function TodoEditor({
     setDueBy(todo?.dueBy ?? null)
     setSubject(todo?.subject ?? null)
     setRepeatWeekday(todo?.repeatWeekday ?? null)
-  }, [todo, initialFolderId, initialPlannedFor])
+    setAllDay(todo ? !!todo.allDay : !!initialAllDay)
+    setStartTime(todo ? (todo.startTime ?? null) : (initialStartTime ?? null))
+    setEndTime(todo ? (todo.endTime ?? null) : (initialEndTime ?? null))
+  }, [
+    todo,
+    initialFolderId,
+    initialPlannedFor,
+    initialAllDay,
+    initialStartTime,
+    initialEndTime,
+  ])
 
   // With a catch-all folder around, "Unsorted" is only worth offering while
   // there are no folders at all, or to a todo that is already sitting there.
@@ -87,6 +113,9 @@ export function TodoEditor({
       dueBy: repeatWeekday !== null ? computedDueBy : dueBy,
       subject,
       repeatWeekday,
+      allDay,
+      startTime: allDay ? null : startTime,
+      endTime: allDay ? null : endTime,
     })
   }
 
@@ -134,6 +163,35 @@ export function TodoEditor({
             ariaLabel="Plan for a date"
           />
         </div>
+
+        {/* Only meaningful once a day is picked — an unplanned todo has nothing
+            to be all-day or timed about. This is what the Calendar view reads:
+            all-day (or nothing) puts it in the all-day strip, a time range
+            places it as a block in the grid. */}
+        {plannedFor !== null && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <Chip active={allDay} onClick={() => setAllDay(!allDay)}>
+              All day
+            </Chip>
+            {!allDay && (
+              <>
+                <TimeChip
+                  value={startTime}
+                  onChange={setStartTime}
+                  placeholder="Start"
+                  ariaLabel="Start time"
+                />
+                <span className="text-xs text-dim">–</span>
+                <TimeChip
+                  value={endTime}
+                  onChange={setEndTime}
+                  placeholder="End"
+                  ariaLabel="End time"
+                />
+              </>
+            )}
+          </div>
+        )}
 
         <label className="mb-1.5 block text-xs text-muted">Due</label>
         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -269,6 +327,50 @@ function DateChip({
       {dated ? `${icon} ${formatShort(fromISODate(value))}` : `${icon} ${label}`}
       <input
         type="date"
+        value={value ?? ''}
+        aria-label={ariaLabel}
+        onClick={(e) => {
+          const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }
+          try {
+            el.showPicker?.()
+          } catch {
+            /* refused without a gesture — the plain tap still opens it */
+          }
+        }}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  )
+}
+
+/**
+ * A single "HH:MM" pill — the same native-input-behind-a-styled-label pattern
+ * as `DateChip`, so no time widget is hand-drawn either.
+ */
+function TimeChip({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string | null
+  onChange: (time: string | null) => void
+  placeholder: string
+  ariaLabel: string
+}) {
+  const set = value !== null
+
+  return (
+    <label
+      className={cn(
+        'relative flex h-9 items-center rounded-md border px-3 text-xs transition-colors',
+        set ? 'border-brass-dim bg-brass-dim/30 text-parchment' : 'border-line text-dim',
+      )}
+    >
+      {set ? value : placeholder}
+      <input
+        type="time"
         value={value ?? ''}
         aria-label={ariaLabel}
         onClick={(e) => {

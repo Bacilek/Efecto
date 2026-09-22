@@ -252,6 +252,9 @@ export function TodosScreen() {
         dueBy: draft.dueBy ?? undefined,
         subject: draft.subject ?? undefined,
         repeatWeekday: draft.repeatWeekday ?? undefined,
+        allDay: draft.allDay || undefined,
+        startTime: draft.startTime ?? undefined,
+        endTime: draft.endTime ?? undefined,
         ...planPatch(target, draft.plannedFor),
       })
     } else {
@@ -267,6 +270,9 @@ export function TodosScreen() {
         dueBy: draft.dueBy ?? undefined,
         subject: draft.subject ?? undefined,
         repeatWeekday: draft.repeatWeekday ?? undefined,
+        allDay: draft.allDay || undefined,
+        startTime: draft.startTime ?? undefined,
+        endTime: draft.endTime ?? undefined,
         ...planPatch(null, draft.plannedFor),
         order: maxOrder + 1,
         ...stamp(),
