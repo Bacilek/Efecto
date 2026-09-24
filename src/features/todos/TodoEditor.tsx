@@ -120,7 +120,7 @@ export function TodoEditor({
 
   // The closing weekday lives in `weeklySince` itself — no second field to
   // fall out of step with it.
-  const start = weeklyStartFor(0, todayISO())
+  const start = weeklyStartFor(weekdayOf(todayISO()), todayISO())
   const weekEnds = weekdayOf(weeklySince ?? start)
 
   function submit() {
@@ -134,7 +134,7 @@ export function TodoEditor({
       dueBy: repeat === 'deadline' ? computedDueBy : repeat === 'week' ? null : dueBy,
       subject,
       repeatWeekday: repeat === 'deadline' ? (repeatWeekday ?? 0) : null,
-      weeklySince: repeat === 'week' ? (weeklySince ?? weeklyStartFor(0, todayISO())) : null,
+      weeklySince: repeat === 'week' ? (weeklySince ?? start) : null,
       allDay,
       startTime: allDay ? null : startTime,
       endTime: allDay ? null : endTime,
@@ -249,7 +249,7 @@ export function TodoEditor({
               active={repeat === 'week'}
               onClick={() => {
                 setRepeat('week')
-                setWeeklySince((prev) => prev ?? weeklyStartFor(0, todayISO()))
+                setWeeklySince((prev) => prev ?? start)
               }}
             >
               Every week
@@ -301,13 +301,18 @@ export function TodoEditor({
                 <Chip
                   key={d}
                   active={weekEnds === d}
-                  onClick={() => setWeeklySince((prev) => withWeekday(prev ?? start, d))}
+                  // The nearest upcoming close of that weekday, not the same
+                  // day inside whatever week is stored: shifting within the
+                  // week could land the start *after* the cycle we're in, and
+                  // a todo whose first cycle hasn't come round yet has nothing
+                  // to show — it looked like saving had failed.
+                  onClick={() => setWeeklySince(weeklyStartFor(d, todayISO()))}
                 >
                   {DAY_LABELS[d]}
                 </Chip>
               ))}
             </div>
-            <div className="mb-4 flex flex-wrap gap-1.5">
+            <div className="mb-1.5 flex flex-wrap gap-1.5">
               <DateChip
                 value={weeklySince}
                 onChange={(iso) => setWeeklySince(iso ? withWeekday(iso, weekEnds) : start)}
@@ -316,6 +321,14 @@ export function TodoEditor({
                 ariaLabel="First cycle"
               />
             </div>
+            {/* A start later than the cycle we're in is legitimate but shows
+                nothing until it arrives, so say so rather than let the task
+                look like it failed to save. */}
+            {(weeklySince ?? start) > weeklyStartFor(weekEnds, todayISO()) && (
+              <p className="mb-4 text-[11px] text-brass-dim">
+                Starts later — nothing shows until {formatShort(fromISODate(weeklySince ?? start))}.
+              </p>
+            )}
           </>
         ) : (
           <>

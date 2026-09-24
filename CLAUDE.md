@@ -347,7 +347,13 @@ is the whole point:
     Wednesday. The weekday is therefore read back out of `weeklySince`
     (`weekdayOf`) rather than stored beside it, so there is no second field to
     fall out of step with the start. The editor's "Week ends on" chips move
-    the start onto that weekday (`withWeekday`).
+    the start onto that weekday — to the **nearest upcoming close** of it
+    (`weeklyStartFor`), not the same day inside whatever week is stored.
+    Shifting within the week could put the start *after* the cycle we're in,
+    and a todo whose first cycle hasn't arrived yet emits nothing at all, so
+    it looked like saving had silently failed. A deliberately later start is
+    still possible from the date chip, and the editor then says what it will
+    do rather than leaving the task to vanish.
   - The cycle runs **up to and including** its closing day (`currentAnchor` is
     the next closing date on or after today), so it only reddens the day
     after — and the next cycle appears the same moment, rather than leaving a
