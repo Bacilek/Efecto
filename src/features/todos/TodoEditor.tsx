@@ -32,6 +32,7 @@ export function TodoEditor({
   subjects,
   initialFolderId,
   initialPlannedFor,
+  initialSubject,
   initialAllDay,
   initialStartTime,
   initialEndTime,
@@ -48,6 +49,8 @@ export function TodoEditor({
   initialFolderId: string | null
   /** set for a todo added from the Today tab, so it lands there */
   initialPlannedFor: string | null
+  /** set for a todo added from inside a subject folder, so it stays there */
+  initialSubject?: string | null
   /** set for a todo added by tapping the Calendar's all-day strip */
   initialAllDay?: boolean
   /** set for a todo added by tapping an empty Calendar grid slot */
@@ -74,7 +77,7 @@ export function TodoEditor({
     setFolderId(todo ? (todo.folderId ?? null) : initialFolderId)
     setPlannedFor(todo ? (todo.plannedFor ?? null) : initialPlannedFor)
     setDueBy(todo?.dueBy ?? null)
-    setSubject(todo?.subject ?? null)
+    setSubject(todo ? (todo.subject ?? null) : (initialSubject ?? null))
     setRepeatWeekday(todo?.repeatWeekday ?? null)
     setAllDay(todo ? !!todo.allDay : !!initialAllDay)
     setStartTime(todo ? (todo.startTime ?? null) : (initialStartTime ?? null))
@@ -83,6 +86,7 @@ export function TodoEditor({
     todo,
     initialFolderId,
     initialPlannedFor,
+    initialSubject,
     initialAllDay,
     initialStartTime,
     initialEndTime,

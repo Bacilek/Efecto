@@ -3,6 +3,7 @@ import { BottomNav, type Screen } from './app/BottomNav'
 import {
   backfillEmojis,
   backfillLessonExceptions,
+  backfillSubjectHost,
   seedIfEmpty,
   seedTimetableIfEmpty,
   seedTodoFoldersIfEmpty,
@@ -20,7 +21,7 @@ export default function App() {
   useEffect(() => {
     void seedIfEmpty().then(backfillEmojis)
     void seedTimetableIfEmpty().then(backfillLessonExceptions)
-    void seedTodoFoldersIfEmpty()
+    void seedTodoFoldersIfEmpty().then(backfillSubjectHost)
   }, [])
 
   // The provider sits above the screen switch on purpose: sync runs for as long

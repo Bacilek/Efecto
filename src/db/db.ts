@@ -132,6 +132,15 @@ export interface TodoFolder {
    * At most one folder carries it (the seeded "Others").
    */
   isDefault?: boolean
+  /**
+   * This folder hosts the timetable's subjects: opening it shows a tile per
+   * subject above its own todos, and each tile opens that subject's classes
+   * and tagged todos. Derived, not stored — a subject "folder" is a view over
+   * `Lesson.name` and `Todo.subject`, never a `TodoFolder` row, because class
+   * occurrences aren't todos and could never sit in one. Backfilled onto the
+   * seeded "School"; a flag rather than a hard-coded name so it can be moved.
+   */
+  showsSubjects?: boolean
   createdAt: number
   /** epoch ms of the last local write; the sync engine's conflict tie-break */
   updatedAt: number

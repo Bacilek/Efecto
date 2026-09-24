@@ -227,6 +227,28 @@ export async function backfillLessonExceptions(): Promise<void> {
   })
 }
 
+/**
+ * Marks the folder that hosts the timetable's subjects. "School" is where they
+ * belong for this user, but the flag lives on the row rather than the name
+ * being hard-coded, so it can be moved to another folder later.
+ *
+ * Runs once, guarded by a `meta` key like the other backfills — clearing the
+ * flag afterwards has to stick, so it must not be re-applied on every start.
+ * It also deliberately creates nothing: a subject folder is a *view*, so
+ * there are no rows to generate, and therefore none for two devices to
+ * generate twice under different ids.
+ */
+export async function backfillSubjectHost(): Promise<void> {
+  const done = await db.meta.get('subjectHost1')
+  if (done) return
+
+  await db.transaction('rw', db.todoFolders, db.meta, async () => {
+    const host = (await db.todoFolders.toArray()).find((f) => f.name === 'School')
+    if (host) await db.todoFolders.update(host.id, { showsSubjects: true })
+    await db.meta.put({ key: 'subjectHost1', value: Date.now() })
+  })
+}
+
 type SeedFolder = Pick<TodoFolder, 'name' | 'emoji'> & { isDefault?: boolean }
 
 /**

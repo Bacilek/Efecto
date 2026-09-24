@@ -14,8 +14,15 @@ import { SubjectDayList } from './SubjectDayList'
 import { PlannedDayList } from './PlannedDayList'
 import { DuesList } from './DuesList'
 import { buildSubjectGroups } from './subjects'
+import { buildSubjectFolders } from './subjectFolder'
+import { SubjectFolderView, SubjectTiles } from './SubjectFolderView'
 import { buildSubjectDayGroups } from './subjectDay'
-import { coverOn, coverPatch, lessonOccurrences, pendingSeminarAbsences } from '@/features/timetable/cover'
+import {
+  coverOn,
+  coverPatch,
+  lessonOccurrences,
+  pendingSeminarAbsences,
+} from '@/features/timetable/cover'
 import { toggledAbsence } from '@/features/timetable/absence'
 import {
   dueRolloverPatch,
@@ -32,7 +39,12 @@ import {
 } from './today'
 
 /** `{ todo: null }` opens the sheet for a new todo in `folderId`. */
-type TodoTarget = { todo: Todo | null; folderId: string | null; plannedFor: string | null } | null
+type TodoTarget = {
+  todo: Todo | null
+  folderId: string | null
+  plannedFor: string | null
+  subject?: string | null
+} | null
 type FolderTarget = { folder: TodoFolder | null } | null
 
 /** The two sub-tabs: what I mean to do today, and everything there is. */
@@ -54,6 +66,10 @@ export function TodosScreen() {
   const [folderEditor, setFolderEditor] = useState<FolderTarget>(null)
   /** which folder is open on the All tab; null = the tile overview */
   const [openKey, setOpenKey] = useState<string | null>(null)
+  // The subject drilled into inside a `showsSubjects` folder. A second level
+  // of `openKey` rather than a route, matching how the folder view itself is
+  // plain component state.
+  const [openSubject, setOpenSubject] = useState<string | null>(null)
   /** the day `SubjectDayNav` is paged to; today by default */
   const [viewDate, setViewDate] = useState(todayISO())
 
@@ -161,6 +177,21 @@ export function TodosScreen() {
   // overview rather than a blank screen.
   const open = tab === 'all' ? (sections.find((s) => s.key === openKey) ?? null) : null
 
+  // Every subject the timetable or a tagged todo knows about, with its
+  // classes and its whole task list — the browsable counterpart to the Today
+  // tab's subject groups.
+  const subjectFolders = useMemo(
+    () => buildSubjectFolders(lessons ?? [], classOccurrences, todos ?? []),
+    [lessons, classOccurrences, todos],
+  )
+
+  // Resolved against the live list, so a subject that vanishes from the
+  // timetable drops back to the folder rather than showing an empty screen.
+  const openSubjectFolder =
+    open?.folder?.showsSubjects && openSubject
+      ? (subjectFolders.find((f) => f.subject === openSubject) ?? null)
+      : null
+
   // Where the floating "+" drops a todo: the open folder, else the catch-all
   // ("Others"), else the first tile. Null only until the seed lands.
   const defaultFolderId =
@@ -170,6 +201,10 @@ export function TodosScreen() {
     setTodoEditor({
       todo: null,
       folderId: open ? (open.folder?.id ?? null) : defaultFolderId,
+      // Adding from inside a subject lands there already tagged — the tag is
+      // what puts it in that view, so leaving it off would drop the new task
+      // somewhere the user isn't looking.
+      subject: openSubjectFolder?.subject ?? null,
       // Adding from the Today tab means "today" — that is what the tab is for.
       plannedFor: tab === 'today' ? today : null,
     })
@@ -180,6 +215,11 @@ export function TodosScreen() {
       done: !todo.done,
       doneAt: todo.done ? undefined : Date.now(),
     })
+  }
+
+  /** Tick a class occurrence off on its own date — used by the subject view. */
+  async function toggleCover(lesson: Lesson, date: string, covered: boolean) {
+    await db.lessons.update(lesson.id, coverPatch(lesson, date, covered))
   }
 
   /** Correct a past (or preview a future) day's class occurrence from the day pager. */
@@ -329,11 +369,43 @@ export function TodosScreen() {
 
   return (
     <>
-      {open ? (
+      {openSubjectFolder ? (
+        <SubjectFolderView
+          folder={openSubjectFolder}
+          today={today}
+          onBack={() => setOpenSubject(null)}
+          onToggleCover={(l, date, covered) => void toggleCover(l, date, covered)}
+        >
+          {(list) =>
+            list.map((t) => (
+              <TodoRow
+                key={t.id}
+                todo={t}
+                today={today}
+                onToggle={() => void toggleDone(t)}
+                onTogglePlanned={() => void togglePlanned(t)}
+                onPushToTomorrow={() => void pushToTomorrow(t)}
+                onPlanDate={(iso) => void planOn(t, iso)}
+                onEdit={() => editTodo(t)}
+              />
+            ))
+          }
+        </SubjectFolderView>
+      ) : open ? (
         <FolderView
           section={open}
           today={today}
-          onBack={() => setOpenKey(null)}
+          subjectTiles={
+            open.folder?.showsSubjects ? (
+              <SubjectTiles folders={subjectFolders} today={today} onOpen={setOpenSubject} />
+            ) : null
+          }
+          onBack={() => {
+            setOpenKey(null)
+            // Leaving the folder forgets the subject too, or reopening it
+            // would land back inside whichever subject was last visited.
+            setOpenSubject(null)
+          }}
           onEditFolder={() => open.folder && setFolderEditor({ folder: open.folder })}
           onToggleTodo={(t) => void toggleDone(t)}
           onTogglePlanned={(t) => void togglePlanned(t)}
@@ -465,6 +537,7 @@ export function TodosScreen() {
           subjects={lessonSubjects}
           initialFolderId={todoEditor.folderId}
           initialPlannedFor={todoEditor.plannedFor}
+          initialSubject={todoEditor.subject ?? null}
           onSave={(d) => void saveTodo(d)}
           onDelete={() => void deleteTodo()}
           onClose={() => setTodoEditor(null)}
@@ -848,6 +921,7 @@ function FolderTile({
 function FolderView({
   section,
   today,
+  subjectTiles,
   onBack,
   onEditFolder,
   onToggleTodo,
@@ -858,6 +932,8 @@ function FolderView({
 }: {
   section: Section
   today: string
+  /** the subject sub-tiles, for the folder that hosts them; null otherwise */
+  subjectTiles: ReactNode
   onBack: () => void
   onEditFolder: () => void
   onToggleTodo: (t: Todo) => void
@@ -894,8 +970,12 @@ function FolderView({
         )}
       </header>
 
+      {subjectTiles}
+
       {todos.length === 0 ? (
-        <EmptyState title="Nothing here yet." hint={'Add a task with "+".'} />
+        subjectTiles ? null : (
+          <EmptyState title="Nothing here yet." hint={'Add a task with "+".'} />
+        )
       ) : (
         <ul className="px-4 pb-28">
           {todos.map((t) => (
