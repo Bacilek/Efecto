@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { db, type Lesson, type Todo } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { formatShort, fromISODate } from '@/lib/date'
@@ -6,6 +6,8 @@ import { timeToMinutes } from '@/lib/time'
 import { coverOn, coverPatch } from '@/features/timetable/cover'
 import { KIND_ORDER } from '@/features/timetable/layout'
 import { ClassRow } from './ClassRow'
+import { WeeklyRow } from './WeeklyRow'
+import { weekDone, weeklyTogglePatch } from './weekly'
 import { isOverdue } from './today'
 import { subjectStatus, type SubjectGroup } from './subjects'
 
@@ -49,6 +51,10 @@ export function SubjectList({
     await db.lessons.update(lesson.id, coverPatch(lesson, date, covered))
   }
 
+  async function toggleWeek(todo: Todo, monday: string, done: boolean) {
+    await db.todos.update(todo.id, weeklyTogglePatch(todo, monday, done, today))
+  }
+
   return (
     <ul className="rounded-md border border-line-soft">
       {groups.map((group) => {
@@ -56,16 +62,50 @@ export function SubjectList({
         const status = subjectStatus(group, today)
         const openCount =
           group.occurrences.filter((o) => !coverOn(o.lesson, o.date)).length +
+          group.weekly.filter((o) => !weekDone(o.todo, o.date)).length +
           group.todos.filter((t) => !t.done).length
 
-        const occurrences = [...group.occurrences].sort((a, b) => {
-          const doneA = Number(coverOn(a.lesson, a.date))
-          const doneB = Number(coverOn(b.lesson, b.date))
-          if (doneA !== doneB) return doneA - doneB
+        // Classes and weekly tasks are the same kind of obligation, so they
+        // share one chronological stream — a subject reads `#L1 #W1 #L2 #W2`
+        // rather than as two unrelated blocks. A class sorts before a weekly
+        // task inside a week, since it is pinned to an actual hour.
+        const occurrences: OccurrenceItem[] = [
+          ...group.occurrences.map((o) => ({
+            key: `${o.lesson.id}|${o.date}`,
+            date: o.date,
+            done: coverOn(o.lesson, o.date),
+            rank: 0,
+            tie: timeToMinutes(o.lesson.start) + KIND_ORDER[o.lesson.kind] / 10,
+            node: (
+              <ClassRow
+                lesson={o.lesson}
+                date={o.date}
+                today={today}
+                onToggle={() => void toggleCover(o.lesson, o.date, !coverOn(o.lesson, o.date))}
+              />
+            ),
+          })),
+          ...group.weekly.map((o) => ({
+            key: `${o.todo.id}|${o.date}`,
+            date: o.date,
+            done: weekDone(o.todo, o.date),
+            rank: 1,
+            tie: 0,
+            node: (
+              <WeeklyRow
+                todo={o.todo}
+                date={o.date}
+                today={today}
+                onToggle={() => void toggleWeek(o.todo, o.date, !weekDone(o.todo, o.date))}
+                onOpen={() => onEditTodo(o.todo)}
+              />
+            ),
+          })),
+        ].sort((a, b) => {
+          if (a.done !== b.done) return a.done ? 1 : -1
           if (a.date !== b.date) return a.date < b.date ? -1 : 1
-          const kindCmp = KIND_ORDER[a.lesson.kind] - KIND_ORDER[b.lesson.kind]
-          if (kindCmp !== 0) return kindCmp
-          return timeToMinutes(a.lesson.start) - timeToMinutes(b.lesson.start)
+          if (a.rank !== b.rank) return a.rank - b.rank
+          return a.tie - b.tie
         })
         const todos = [...group.todos].sort((a, b) => {
           if (a.done !== b.done) return a.done ? 1 : -1
@@ -90,15 +130,8 @@ export function SubjectList({
 
             {open && (
               <ul className="pb-1.5 pl-3">
-                {occurrences.map(({ lesson: l, date }) => (
-                  <li key={`${l.id}|${date}`}>
-                    <ClassRow
-                      lesson={l}
-                      date={date}
-                      today={today}
-                      onToggle={() => void toggleCover(l, date, !coverOn(l, date))}
-                    />
-                  </li>
+                {occurrences.map((o) => (
+                  <li key={o.key}>{o.node}</li>
                 ))}
                 {todos.map((t) => {
                   const overdue = isOverdue(t, today)
@@ -161,4 +194,16 @@ const STATUS_DOT: Record<'urgent' | 'open' | 'quiet', string> = {
   urgent: 'bg-missed',
   open: 'bg-brass-dim',
   quiet: 'bg-line',
+}
+
+/** One row in the merged classes + weekly-tasks stream. */
+interface OccurrenceItem {
+  key: string
+  date: string
+  done: boolean
+  /** classes before weekly tasks within the same week */
+  rank: number
+  /** start time for a class, so a day reads in order */
+  tie: number
+  node: ReactNode
 }

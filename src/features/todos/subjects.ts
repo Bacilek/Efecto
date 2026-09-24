@@ -1,10 +1,13 @@
 import type { Todo } from '@/db/db'
 import { coverOn, isFromEarlierWeek, type LessonOccurrence } from '@/features/timetable/cover'
 import { isDue, isOnToday, isOverdue } from './today'
+import { isWeekly, weekDone, type WeeklyOccurrence } from './weekly'
 
 export interface SubjectGroup {
   subject: string
   occurrences: LessonOccurrence[]
+  /** weeks a weekly task is still owed for — the same shape as a class */
+  weekly: WeeklyOccurrence[]
   todos: Todo[]
 }
 
@@ -18,6 +21,7 @@ export interface SubjectGroup {
  */
 export function buildSubjectGroups(
   occurrences: LessonOccurrence[],
+  weekly: WeeklyOccurrence[],
   todos: Todo[],
   todayISO: string,
 ): SubjectGroup[] {
@@ -26,14 +30,21 @@ export function buildSubjectGroups(
   function groupFor(subject: string): SubjectGroup {
     let g = groups.get(subject)
     if (!g) {
-      g = { subject, occurrences: [], todos: [] }
+      g = { subject, occurrences: [], weekly: [], todos: [] }
       groups.set(subject, g)
     }
     return g
   }
 
   for (const o of occurrences) groupFor(o.lesson.name).occurrences.push(o)
+  for (const o of weekly) {
+    if (o.todo.subject) groupFor(o.todo.subject).weekly.push(o)
+  }
   for (const t of todos) {
+    // A weekly task is represented by its occurrence rows, never by itself —
+    // listing both would put the "title + due sub-line" shape right next to
+    // the occurrence rows that exist to replace it.
+    if (isWeekly(t)) continue
     if (t.subject && (isOnToday(t, todayISO) || isDue(t, todayISO))) {
       groupFor(t.subject).todos.push(t)
     }
@@ -59,9 +70,12 @@ export function subjectStatus(group: SubjectGroup, todayISO: string): SubjectSta
     group.todos.some((t) => isOverdue(t, todayISO)) ||
     group.occurrences.some(
       (o) => !coverOn(o.lesson, o.date) && isFromEarlierWeek(o.date, todayISO),
-    )
+    ) ||
+    group.weekly.some((o) => !weekDone(o.todo, o.date) && isFromEarlierWeek(o.date, todayISO))
   if (overdue) return 'urgent'
   const open =
-    group.todos.some((t) => !t.done) || group.occurrences.some((o) => !coverOn(o.lesson, o.date))
+    group.todos.some((t) => !t.done) ||
+    group.occurrences.some((o) => !coverOn(o.lesson, o.date)) ||
+    group.weekly.some((o) => !weekDone(o.todo, o.date))
   return open ? 'open' : 'quiet'
 }

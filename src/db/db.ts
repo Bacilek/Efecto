@@ -202,8 +202,33 @@ export interface Todo {
    * at the current/oldest unresolved cycle, so once `dueRolloverPatch` moves
    * it forward, the earlier cycle needs somewhere to live for a past-day
    * report (`features/todos/subjectDay.ts`) to still find it.
+   *
+   * The `weeklySince` flavour keeps the **Mondays** of the weeks already
+   * ticked here instead of due dates. The two flavours are mutually
+   * exclusive, so the field never holds a mix — but switching an existing
+   * todo between them clears it, since the old entries mean the other thing.
    */
   completedDates?: string[]
+  /**
+   * `YYYY-MM-DD`, always a Monday — the first week this todo is owed for.
+   * Set ⇒ this is a **weekly occurrence** todo rather than a recurring *due*
+   * one: it has no deadline at all, but it is owed once a week, and every
+   * week from here to the current one that isn't in `completedDates` stays
+   * outstanding side by side (`features/todos/weekly.ts`). That is the same
+   * "one template row, N accumulating occurrences" shape as a class
+   * (`Lesson.coveredDates`), because it is the same thing: work attached to
+   * the week rather than to a date.
+   *
+   * Mutually exclusive with `repeatWeekday`, the *deadline* flavour — one
+   * cycle at a time, late once its day passes, never stacking. The editor
+   * holds a single choice and writes exactly one of the two, so they can't
+   * both be set; should a bad row ever carry both, `weeklySince` wins.
+   *
+   * Always a Monday, normalised on write: it is the key into
+   * `completedDates` here, and an off-Monday value would key entries nothing
+   * ever looks up — an untickable todo. Only meaningful alongside `subject`.
+   */
+  weeklySince?: string
   /**
    * Spans the whole day on the Calendar view, mutually exclusive with
    * `startTime`/`endTime`. Meaningless without `plannedFor`. Unindexed, like
@@ -359,6 +384,19 @@ db.version(7).stores({
 // v8 adds `allDay`/`startTime`/`endTime` to todos, for the Calendar view —
 // same shape as v6/v7, no index or upgrade hook needed.
 db.version(8).stores({
+  routines: 'id, order, updatedAt',
+  entries: 'id, routineId, date, updatedAt',
+  lessons: 'id, day, updatedAt',
+  todoFolders: 'id, order, updatedAt',
+  todos: 'id, order, updatedAt',
+  tombstones: 'id, deletedAt',
+  meta: 'key',
+})
+
+// v9 adds `weeklySince` to todos — one more optional property on an existing
+// store, so the index is unchanged and no upgrade hook is needed, same as
+// v6/v7/v8 before it.
+db.version(9).stores({
   routines: 'id, order, updatedAt',
   entries: 'id, routineId, date, updatedAt',
   lessons: 'id, day, updatedAt',

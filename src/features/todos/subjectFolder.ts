@@ -1,10 +1,12 @@
 import type { Lesson, Todo } from '@/db/db'
 import { coverOn, isFromEarlierWeek, type LessonOccurrence } from '@/features/timetable/cover'
 import { isOverdue } from './today'
+import { isWeekly, weekDone, type WeeklyOccurrence } from './weekly'
 
 export interface SubjectFolder {
   subject: string
   occurrences: LessonOccurrence[]
+  weekly: WeeklyOccurrence[]
   todos: Todo[]
 }
 
@@ -22,6 +24,7 @@ export interface SubjectFolder {
 export function buildSubjectFolders(
   lessons: Lesson[],
   occurrences: LessonOccurrence[],
+  weekly: WeeklyOccurrence[],
   todos: Todo[],
 ): SubjectFolder[] {
   const names = new Set<string>()
@@ -33,7 +36,10 @@ export function buildSubjectFolders(
     .map((subject) => ({
       subject,
       occurrences: occurrences.filter((o) => o.lesson.name === subject),
-      todos: sortSubjectTodos(todos.filter((t) => t.subject === subject)),
+      weekly: weekly.filter((o) => o.todo.subject === subject),
+      // A weekly task lives in the Weekly section as its occurrences, so it
+      // is kept out of the plain task list rather than appearing twice.
+      todos: sortSubjectTodos(todos.filter((t) => t.subject === subject && !isWeekly(t))),
     }))
 }
 
@@ -61,7 +67,8 @@ export function sortSubjectTodos(todos: Todo[]): Todo[] {
 export function openCountOf(folder: SubjectFolder): number {
   return (
     folder.todos.filter((t) => !t.done).length +
-    folder.occurrences.filter((o) => !coverOn(o.lesson, o.date)).length
+    folder.occurrences.filter((o) => !coverOn(o.lesson, o.date)).length +
+    folder.weekly.filter((o) => !weekDone(o.todo, o.date)).length
   )
 }
 
@@ -71,6 +78,7 @@ export function isUrgent(folder: SubjectFolder, todayISO: string): boolean {
     folder.todos.some((t) => isOverdue(t, todayISO)) ||
     folder.occurrences.some(
       (o) => !coverOn(o.lesson, o.date) && isFromEarlierWeek(o.date, todayISO),
-    )
+    ) ||
+    folder.weekly.some((o) => !weekDone(o.todo, o.date) && isFromEarlierWeek(o.date, todayISO))
   )
 }

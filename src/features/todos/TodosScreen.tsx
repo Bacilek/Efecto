@@ -15,6 +15,7 @@ import { PlannedDayList } from './PlannedDayList'
 import { DuesList } from './DuesList'
 import { buildSubjectGroups } from './subjects'
 import { buildSubjectFolders } from './subjectFolder'
+import { isWeekly, weekDone, weeklyOccurrences, weeklyTogglePatch } from './weekly'
 import { SubjectFolderView, SubjectTiles } from './SubjectFolderView'
 import { buildSubjectDayGroups } from './subjectDay'
 import {
@@ -25,7 +26,7 @@ import {
 } from '@/features/timetable/cover'
 import { toggledAbsence } from '@/features/timetable/absence'
 import {
-  dueRolloverPatch,
+  todoRolloverPatch,
   isCarriedOver,
   isDue,
   isOnToday,
@@ -98,14 +99,18 @@ export function TodosScreen() {
   // Today's classes from the timetable plus any earlier one still uncovered,
   // merged with subject-tagged todos into one collapsible group per subject.
   const classOccurrences = useMemo(() => lessonOccurrences(lessons ?? [], today), [lessons, today])
+  // Weeks a weekly task is still owed for — the todo-side counterpart to
+  // `classOccurrences`, accumulating the same way.
+  const weeklyItems = useMemo(() => weeklyOccurrences(todos ?? [], today), [todos, today])
   const subjectGroups = useMemo(
-    () => buildSubjectGroups(classOccurrences, todos ?? [], today),
-    [classOccurrences, todos, today],
+    () => buildSubjectGroups(classOccurrences, weeklyItems, todos ?? [], today),
+    [classOccurrences, weeklyItems, todos, today],
   )
   const openSubjectItems = subjectGroups.reduce(
     (sum, g) =>
       sum +
       g.occurrences.filter((o) => !coverOn(o.lesson, o.date)).length +
+      g.weekly.filter((o) => !weekDone(o.todo, o.date)).length +
       g.todos.filter((t) => !t.done).length,
     0,
   )
@@ -162,7 +167,7 @@ export function TodosScreen() {
   useEffect(() => {
     if (!todos) return
     for (const t of todos) {
-      const patch = dueRolloverPatch(t, today)
+      const patch = todoRolloverPatch(t, today)
       if (patch) void db.todos.update(t.id, patch)
     }
   }, [todos, today])
@@ -181,8 +186,8 @@ export function TodosScreen() {
   // classes and its whole task list — the browsable counterpart to the Today
   // tab's subject groups.
   const subjectFolders = useMemo(
-    () => buildSubjectFolders(lessons ?? [], classOccurrences, todos ?? []),
-    [lessons, classOccurrences, todos],
+    () => buildSubjectFolders(lessons ?? [], classOccurrences, weeklyItems, todos ?? []),
+    [lessons, classOccurrences, weeklyItems, todos],
   )
 
   // Resolved against the live list, so a subject that vanishes from the
@@ -200,7 +205,9 @@ export function TodosScreen() {
   function addTodo() {
     setTodoEditor({
       todo: null,
-      folderId: open ? (open.folder?.id ?? null) : defaultFolderId,
+      // Inside a subject the subject *is* the home, so no folder is forced on
+      // it — see `buildSections`.
+      folderId: openSubjectFolder ? null : open ? (open.folder?.id ?? null) : defaultFolderId,
       // Adding from inside a subject lands there already tagged — the tag is
       // what puts it in that view, so leaving it off would drop the new task
       // somewhere the user isn't looking.
@@ -215,6 +222,11 @@ export function TodosScreen() {
       done: !todo.done,
       doneAt: todo.done ? undefined : Date.now(),
     })
+  }
+
+  /** Tick one week of a weekly task off — used by the subject views. */
+  async function toggleWeek(todo: Todo, mondayISO: string, done: boolean) {
+    await db.todos.update(todo.id, weeklyTogglePatch(todo, mondayISO, done, today))
   }
 
   /** Tick a class occurrence off on its own date — used by the subject view. */
@@ -238,6 +250,13 @@ export function TodosScreen() {
    * only needs its own log entry touched — `dueBy` stays where it is.
    */
   async function toggleDayTodo(todo: Todo, done: boolean) {
+    // A weekly-occurrence todo is keyed to its week's Monday, which is the
+    // only day it reports on, so the pager writes exactly the same entry the
+    // Today view would.
+    if (isWeekly(todo)) {
+      await db.todos.update(todo.id, weeklyTogglePatch(todo, viewDate, done, today))
+      return
+    }
     if (todo.repeatWeekday === undefined || viewDate === todo.dueBy) {
       await db.todos.update(todo.id, { done, doneAt: done ? Date.now() : undefined })
       return
@@ -285,6 +304,11 @@ export function TodosScreen() {
   async function saveTodo(draft: TodoDraft) {
     const target = todoEditor?.todo
     if (target) {
+      // Both flavours keep their history in `completedDates`, but the entries
+      // mean different dates — due days versus Mondays. Switching flavour
+      // would leave the new one reading the old one's list as its own, so the
+      // history is dropped with the switch.
+      const switched = isWeekly(target) !== (draft.weeklySince !== null)
       await db.todos.update(target.id, {
         title: draft.title,
         note: draft.note || undefined,
@@ -292,9 +316,11 @@ export function TodosScreen() {
         dueBy: draft.dueBy ?? undefined,
         subject: draft.subject ?? undefined,
         repeatWeekday: draft.repeatWeekday ?? undefined,
+        weeklySince: draft.weeklySince ?? undefined,
         allDay: draft.allDay || undefined,
         startTime: draft.startTime ?? undefined,
         endTime: draft.endTime ?? undefined,
+        ...(switched ? { completedDates: undefined, done: false, doneAt: undefined } : {}),
         ...planPatch(target, draft.plannedFor),
       })
     } else {
@@ -310,6 +336,7 @@ export function TodosScreen() {
         dueBy: draft.dueBy ?? undefined,
         subject: draft.subject ?? undefined,
         repeatWeekday: draft.repeatWeekday ?? undefined,
+        weeklySince: draft.weeklySince ?? undefined,
         allDay: draft.allDay || undefined,
         startTime: draft.startTime ?? undefined,
         endTime: draft.endTime ?? undefined,
@@ -375,6 +402,8 @@ export function TodosScreen() {
           today={today}
           onBack={() => setOpenSubject(null)}
           onToggleCover={(l, date, covered) => void toggleCover(l, date, covered)}
+          onToggleWeek={(t, monday, done) => void toggleWeek(t, monday, done)}
+          onEditTodo={editTodo}
         >
           {(list) =>
             list.map((t) => (
@@ -567,7 +596,10 @@ function buildSections(folders: TodoFolder[], todos: Todo[]): Section[] {
     folder: f,
     todos: sortTodos(todos.filter((t) => t.folderId === f.id)),
   }))
-  const loose = sortTodos(todos.filter((t) => !t.folderId))
+  // A subject-tagged todo with no folder isn't loose — its home is the
+  // subject, and it shows there. Only a genuinely unfiled one needs the
+  // fallback bucket.
+  const loose = sortTodos(todos.filter((t) => !t.folderId && !t.subject))
   if (loose.length) sections.push({ key: UNSORTED, folder: null, todos: loose })
   return sections
 }
@@ -1058,6 +1090,10 @@ function TodoRow({
               </span>
             )}
             {ahead && <span className="text-brass-dim">{aheadLabel(todo, today)}</span>}
+            {/* A weekly task has no deadline to announce itself with, and its
+                occurrence rows live elsewhere — so say what it is wherever it
+                turns up in a plain list. */}
+            {isWeekly(todo) && <span className="text-brass-dim">↻ every week</span>}
             {todo.dueBy && (
               <span className={isOverdue(todo, today) ? 'text-missed' : 'text-brass-dim'}>
                 {todo.repeatWeekday !== undefined && '↻ '}

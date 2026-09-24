@@ -1,5 +1,6 @@
 import type { Todo } from '@/db/db'
 import { addDays, fromISODate, toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
+import { isWeekly, weeklyRolloverPatch } from './weekly'
 
 /**
  * Is the todo on the **Today** tab?
@@ -116,6 +117,9 @@ export function nextOccurrenceISO(weekday: WeekdayIndex, todayISO: string): stri
  * rolling a missed week out from under them.
  */
 export function dueRolloverPatch(todo: Todo, todayISO: string): Partial<Todo> | null {
+  // Belt and braces: the editor can't write both flavours, but a row that
+  // somehow carried both must not have its weeks read as due dates.
+  if (isWeekly(todo)) return null
   if (todo.repeatWeekday === undefined || !todo.done || !todo.dueBy || todo.dueBy >= todayISO) {
     return null
   }
@@ -127,4 +131,12 @@ export function dueRolloverPatch(todo: Todo, todayISO: string): Partial<Todo> | 
     // about to move past it, and nothing else remembers it was done.
     completedDates: [...(todo.completedDates ?? []), todo.dueBy],
   }
+}
+
+/**
+ * Re-arms whichever recurring flavour this todo is, so the screen's rollover
+ * effect stays one call rather than growing a branch per flavour.
+ */
+export function todoRolloverPatch(todo: Todo, todayISO: string): Partial<Todo> | null {
+  return weeklyRolloverPatch(todo, todayISO) ?? dueRolloverPatch(todo, todayISO)
 }

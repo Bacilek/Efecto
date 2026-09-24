@@ -328,6 +328,58 @@ open/done split, classes sort by date (oldest first), then subject name, then
 kind (**L**ecture → **S**eminar → **D**emo/lab) — so a run of leftovers from
 one subject reads `#L1, #S1, #L2, #S2` rather than jumping between subjects.
 
+**Two flavours of weekly school work** sit under a subject, and the difference
+is the whole point:
+
+- **`repeatWeekday`** is a *deadline* — "hand it in by Sunday". One cycle at a
+  time: `dueBy` advances only once the ticked cycle's day has passed
+  (`dueRolloverPatch`), so it is late rather than stacking, and a missed week
+  reads "overdue since" until it's ticked.
+- **`weeklySince`** is a *week's worth of work* — "go through the exercises
+  this week". No deadline at all; it is owed once a week and every week from
+  `weeklySince` to the current one that isn't in `completedDates` stays
+  outstanding **side by side**, carried over and reddened by week exactly like
+  a class (`features/todos/weekly.ts`). It renders as
+  `Interaktivní Osnova #W2 (14.09)`.
+
+That second flavour is deliberately the *class* model — one template row, N
+accumulating occurrences — because it is the same kind of thing: work attached
+to a week rather than to a date. Reusing it meant no third recurrence engine.
+
+The two are mutually exclusive, and the **presence of `weeklySince` is the
+discriminator** — no separate flavour flag, which could contradict the payload.
+`TodoEditor` holds one `RepeatMode` state ("One-off" / "Every week" / "By a
+weekday", one row of chips) and writes exactly one of the two fields, so a
+contradictory row can't be produced. `completedDates` is shared: due dates for
+one flavour, **Mondays** for the other — safe because they can't coexist, but
+switching flavour on an existing todo clears the history, since the old entries
+mean the other thing.
+
+"Every week" is offered only once a **subject** is picked (and clearing the
+subject drops back to one-off): it is a school construct, and without a subject
+there is no group or folder that renders occurrence rows. That also makes the
+**folder optional** for any subject-tagged todo — `allowUnsorted` includes
+`subject !== null`, the chip then reads "In the subject", and `buildSections`
+keeps such a todo out of the Unsorted bucket, because its home is the subject.
+
+`weeklyOccurrences` clamps its start to the semester's first Monday. That clamp
+is not optional: when `SEMESTER_START`/`SEMESTER_END` move on to the next term,
+a surviving weekly todo's `weeklySince` points into the old one, and an
+unclamped walk would emit every week of the gap at once. Clamped, it restarts
+at week 1 with last term's `completedDates` sitting inert, keyed to Mondays no
+new week ever looks up.
+
+`done` is not dead weight on a weekly todo — ticking the *current* week mirrors
+into it, so every generic aggregate that asks `!todo.done` (the folder tile's
+count, `sortTodos`, the plain folder list) keeps working untouched and keeps
+answering "is there anything outstanding this week". The backlog lives in
+`completedDates` alone and concerns only the subject views. `weeklyRolloverPatch`
+re-arms `done` when the week turns.
+
+The undo grace works without a `coveredAt`-style timestamp map: a tick always
+appends and always stamps `doneAt`, so "the last entry, stamped today" is
+exactly the tap that just happened.
+
 The only structure is **folders** (categories) — there is no priority, no
 reminder, and mostly no due date (see **Dues** below, the one exception).
 
@@ -614,7 +666,9 @@ sync table isn't quietly turned into a place to keep it.
 - Recurrence stops at weekday sets, weekly counts and week parity. Nothing
   monthly, nothing every-third-week, no end date on a routine.
 - Semester bounds are hard-coded constants, editable only in the source.
-- Todos: no due dates (by design, for now), no archive — delete is hard-delete.
+- Todos: no archive — delete is hard-delete. A weekly deadline is accurate to
+  the **day**, not the hour: "Sunday" means the end of Sunday and it reddens on
+  Monday, which is why there is no time-of-day field.
   Tasks within a folder can't be reordered by drag (only folders can); neither
   the open folder nor the sub-tab is remembered across a tab switch. Nothing
   repeats: a task planned for today is a one-off.

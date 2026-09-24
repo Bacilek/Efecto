@@ -1,7 +1,8 @@
 import type { Lesson, Todo } from '@/db/db'
-import { fromISODate, toISODate, weekdayIndex } from '@/lib/date'
+import { fromISODate, mondayOf, toISODate, weekdayIndex } from '@/lib/date'
 import { coverOn, isTrackedSeminar, lessonsOn } from '@/features/timetable/cover'
 import type { DayStatus } from './today'
+import { isWeekly, weekDone } from './weekly'
 
 export type { DayStatus }
 
@@ -28,7 +29,7 @@ function lessonStatus(lesson: Lesson, dateISO: string, todayISO: string): DaySta
  * "missed" without needing its own log entry.
  */
 function recurringTodoStatus(todo: Todo, dateISO: string, todayISO: string): DayStatus | null {
-  if (todo.repeatWeekday === undefined || !todo.subject) return null
+  if (isWeekly(todo) || todo.repeatWeekday === undefined || !todo.subject) return null
   if (weekdayIndex(fromISODate(dateISO)) !== todo.repeatWeekday) return null
   if (toISODate(new Date(todo.createdAt)) > dateISO) return null
 
@@ -39,12 +40,32 @@ function recurringTodoStatus(todo: Todo, dateISO: string, todayISO: string): Day
 }
 
 /**
+ * A weekly-occurrence todo is owed for a *week*, so it reports on that week's
+ * Monday and nowhere else — the same date its occurrence row is keyed to, so
+ * ticking it from the day pager and ticking it on Today write the same entry.
+ *
+ * Unlike the deadline flavour there is no `dueBy` to infer a miss from: a
+ * past week that isn't in `completedDates` simply wasn't done, and the
+ * current week is still open rather than missed.
+ */
+function weeklyTodoStatus(todo: Todo, dateISO: string, todayISO: string): DayStatus | null {
+  if (!isWeekly(todo) || !todo.subject) return null
+  const monday = toISODate(mondayOf(fromISODate(dateISO)))
+  if (monday !== dateISO || dateISO < todo.weeklySince!) return null
+
+  if (dateISO > todayISO) return 'upcoming'
+  if (weekDone(todo, dateISO)) return 'done'
+  return dateISO === toISODate(mondayOf(fromISODate(todayISO))) ? 'pending' : 'missed'
+}
+
+/**
  * A one-off subject-tagged todo's `dueBy` never moves, so unlike a recurring
  * one it needs no history at all — the current `done` flag already answers
  * the question for any date its deadline happens to be.
  */
 function oneOffSubjectTodoStatus(todo: Todo, dateISO: string, todayISO: string): DayStatus | null {
-  if (todo.repeatWeekday !== undefined || !todo.subject || !todo.dueBy) return null
+  if (isWeekly(todo) || todo.repeatWeekday !== undefined || !todo.subject || !todo.dueBy)
+    return null
   if (todo.dueBy !== dateISO) return null
   if (dateISO > todayISO) return 'upcoming'
   return todo.done ? 'done' : 'missed'
@@ -101,7 +122,10 @@ export function buildSubjectDayGroups(
   }
   for (const todo of todos) {
     if (!todo.subject) continue
-    const status = recurringTodoStatus(todo, dateISO, todayISO) ?? oneOffSubjectTodoStatus(todo, dateISO, todayISO)
+    const status =
+      weeklyTodoStatus(todo, dateISO, todayISO) ??
+      recurringTodoStatus(todo, dateISO, todayISO) ??
+      oneOffSubjectTodoStatus(todo, dateISO, todayISO)
     if (status) groupFor(todo.subject).todos.push({ todo, status })
   }
 
