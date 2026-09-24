@@ -262,7 +262,8 @@ export function TodoEditor({
         </div>
         {repeat === 'week' && (
           <p className="mb-3 text-[11px] text-dim">
-            One per week — they stack until ticked, like a class.
+            No deadline — one per week, stacking until ticked and turning red a week on, exactly
+            like a class.
           </p>
         )}
         {repeat === 'deadline' && (
@@ -275,37 +276,51 @@ export function TodoEditor({
           </div>
         )}
 
-        <label className="mb-1.5 block text-xs text-muted">Due</label>
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {repeat === 'deadline' ? (
-            <span className="flex h-9 items-center rounded-md border border-line px-3 text-xs text-dim">
-              ⏰ next {formatShort(fromISODate(computedDueBy!))}
-            </span>
-          ) : repeat === 'week' ? (
-            <DateChip
-              value={weeklySince}
-              onChange={(iso) =>
-                setWeeklySince(iso ? weeklyStartFor(iso) : weeklyStartFor(todayISO()))
-              }
-              icon="↻"
-              label={`from ${formatShort(fromISODate(weeklySince ?? weeklyStartFor(todayISO())))}`}
-              ariaLabel="First week owed"
-            />
-          ) : (
-            <>
-              <Chip active={dueBy === null} onClick={() => setDueBy(null)}>
-                No deadline
-              </Chip>
+        {/*
+          "Every week" has no deadline at all — it is owed for a week, not by a
+          date — so it gets its own labelled row. Sitting under a "Due" heading
+          it read as a deadline picker, which is the one thing it is not.
+        */}
+        {repeat === 'week' ? (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">First week</label>
+            <div className="mb-4 flex flex-wrap gap-1.5">
               <DateChip
-                value={dueBy}
-                onChange={setDueBy}
-                icon="⏰"
-                label="Due date"
-                ariaLabel="Due date"
+                value={weeklySince}
+                onChange={(iso) =>
+                  setWeeklySince(iso ? weeklyStartFor(iso) : weeklyStartFor(todayISO()))
+                }
+                icon="↻"
+                label={`from ${formatShort(fromISODate(weeklySince ?? weeklyStartFor(todayISO())))}`}
+                ariaLabel="First week owed"
               />
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">Due</label>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {repeat === 'deadline' ? (
+                <span className="flex h-9 items-center rounded-md border border-line px-3 text-xs text-dim">
+                  ⏰ next {formatShort(fromISODate(computedDueBy!))}
+                </span>
+              ) : (
+                <>
+                  <Chip active={dueBy === null} onClick={() => setDueBy(null)}>
+                    No deadline
+                  </Chip>
+                  <DateChip
+                    value={dueBy}
+                    onChange={setDueBy}
+                    icon="⏰"
+                    label="Due date"
+                    ariaLabel="Due date"
+                  />
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         <label className="mb-1.5 block text-xs text-muted">Folder</label>
         <div className="mb-4 flex flex-wrap gap-1.5">
