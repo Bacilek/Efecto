@@ -336,11 +336,21 @@ is the whole point:
   (`dueRolloverPatch`), so it is late rather than stacking, and a missed week
   reads "overdue since" until it's ticked.
 - **`weeklySince`** is a *week's worth of work* — "go through the exercises
-  this week". No deadline at all; it is owed once a week and every week from
-  `weeklySince` to the current one that isn't in `completedDates` stays
-  outstanding **side by side**, carried over and reddened by week exactly like
-  a class (`features/todos/weekly.ts`). It renders as
-  `Interaktivní Osnova #W2 (14.09)`.
+  this week". No deadline at all; it is owed once a cycle and every cycle from
+  `weeklySince` to the one we're inside that isn't in `completedDates` stays
+  outstanding **side by side**, carried over and reddened exactly like a class
+  (`features/todos/weekly.ts`). It renders as `Jupyter #W2 (16.09)`.
+  - A cycle closes on the weekday `weeklySince` itself falls on — **not** on a
+    Sunday. A Monday-to-Sunday week would tell every subject that doesn't meet
+    on a Monday the wrong thing: work for a Wednesday class is up on
+    Wednesday. The weekday is therefore read back out of `weeklySince`
+    (`weekdayOf`) rather than stored beside it, so there is no second field to
+    fall out of step with the start. The editor's "Week ends on" chips move
+    the start onto that weekday (`withWeekday`).
+  - The cycle runs **up to and including** its closing day (`currentAnchor` is
+    the next closing date on or after today), so it only reddens the day
+    after — and the next cycle appears the same moment, rather than leaving a
+    gap with nothing current in it.
 
 That second flavour is deliberately the *class* model — one template row, N
 accumulating occurrences — because it is the same kind of thing: work attached

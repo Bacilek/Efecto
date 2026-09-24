@@ -1,8 +1,8 @@
 import type { Lesson, Todo } from '@/db/db'
-import { fromISODate, mondayOf, toISODate, weekdayIndex } from '@/lib/date'
+import { fromISODate, toISODate, weekdayIndex } from '@/lib/date'
 import { coverOn, isTrackedSeminar, lessonsOn } from '@/features/timetable/cover'
 import type { DayStatus } from './today'
-import { isWeekly, weekDone } from './weekly'
+import { currentAnchor, isWeekly, weekDone, weeklyWeekday } from './weekly'
 
 export type { DayStatus }
 
@@ -40,22 +40,22 @@ function recurringTodoStatus(todo: Todo, dateISO: string, todayISO: string): Day
 }
 
 /**
- * A weekly-occurrence todo is owed for a *week*, so it reports on that week's
- * Monday and nowhere else — the same date its occurrence row is keyed to, so
- * ticking it from the day pager and ticking it on Today write the same entry.
- *
- * Unlike the deadline flavour there is no `dueBy` to infer a miss from: a
- * past week that isn't in `completedDates` simply wasn't done, and the
- * current week is still open rather than missed.
+ * A weekly-occurrence todo is owed for a *cycle*, which closes on the weekday
+ * its `weeklySince` falls on — so it reports on that day and nowhere else.
  */
 function weeklyTodoStatus(todo: Todo, dateISO: string, todayISO: string): DayStatus | null {
   if (!isWeekly(todo) || !todo.subject) return null
-  const monday = toISODate(mondayOf(fromISODate(dateISO)))
-  if (monday !== dateISO || dateISO < todo.weeklySince!) return null
+  // It reports on its own closing day and nowhere else — the same date its
+  // occurrence row is keyed to, so ticking it from the pager and ticking it on
+  // Today write the same entry.
+  if (weekdayIndex(fromISODate(dateISO)) !== weeklyWeekday(todo)) return null
+  if (dateISO < todo.weeklySince!) return null
 
   if (dateISO > todayISO) return 'upcoming'
   if (weekDone(todo, dateISO)) return 'done'
-  return dateISO === toISODate(mondayOf(fromISODate(todayISO))) ? 'pending' : 'missed'
+  // No `dueBy` to infer a miss from: the cycle we're inside is still open,
+  // anything earlier simply wasn't done.
+  return dateISO === currentAnchor(todo, todayISO) ? 'pending' : 'missed'
 }
 
 /**

@@ -3,7 +3,7 @@ import type { Todo, TodoFolder } from '@/db/db'
 import { cn } from '@/lib/cn'
 import { DAY_LABELS, formatShort, fromISODate, todayISO, type WeekdayIndex } from '@/lib/date'
 import { nextOccurrenceISO } from './today'
-import { weeklyStartFor } from './weekly'
+import { weekdayOf, weeklyStartFor, withWeekday } from './weekly'
 
 export interface TodoDraft {
   title: string
@@ -118,6 +118,11 @@ export function TodoEditor({
         : nextOccurrenceISO(repeatWeekday, todayISO())
       : null
 
+  // The closing weekday lives in `weeklySince` itself — no second field to
+  // fall out of step with it.
+  const start = weeklyStartFor(0, todayISO())
+  const weekEnds = weekdayOf(weeklySince ?? start)
+
   function submit() {
     const trimmed = title.trim()
     if (!trimmed) return
@@ -129,7 +134,7 @@ export function TodoEditor({
       dueBy: repeat === 'deadline' ? computedDueBy : repeat === 'week' ? null : dueBy,
       subject,
       repeatWeekday: repeat === 'deadline' ? (repeatWeekday ?? 0) : null,
-      weeklySince: repeat === 'week' ? (weeklySince ?? weeklyStartFor(todayISO())) : null,
+      weeklySince: repeat === 'week' ? (weeklySince ?? weeklyStartFor(0, todayISO())) : null,
       allDay,
       startTime: allDay ? null : startTime,
       endTime: allDay ? null : endTime,
@@ -244,7 +249,7 @@ export function TodoEditor({
               active={repeat === 'week'}
               onClick={() => {
                 setRepeat('week')
-                setWeeklySince((prev) => prev ?? weeklyStartFor(todayISO()))
+                setWeeklySince((prev) => prev ?? weeklyStartFor(0, todayISO()))
               }}
             >
               Every week
@@ -283,16 +288,32 @@ export function TodoEditor({
         */}
         {repeat === 'week' ? (
           <>
-            <label className="mb-1.5 block text-xs text-muted">First week</label>
+            {/*
+              The cycle closes on this weekday, which is not the same as a
+              deadline: it is when the week is up. Picking it per task rather
+              than deriving it from the timetable, because a subject can have
+              several lessons a week and only the user knows which one the
+              work is actually for.
+            */}
+            <label className="mb-1.5 block text-xs text-muted">Week ends on</label>
+            <div className="mb-1.5 flex flex-wrap gap-1.5">
+              {ALL_DAYS.map((d) => (
+                <Chip
+                  key={d}
+                  active={weekEnds === d}
+                  onClick={() => setWeeklySince((prev) => withWeekday(prev ?? start, d))}
+                >
+                  {DAY_LABELS[d]}
+                </Chip>
+              ))}
+            </div>
             <div className="mb-4 flex flex-wrap gap-1.5">
               <DateChip
                 value={weeklySince}
-                onChange={(iso) =>
-                  setWeeklySince(iso ? weeklyStartFor(iso) : weeklyStartFor(todayISO()))
-                }
+                onChange={(iso) => setWeeklySince(iso ? withWeekday(iso, weekEnds) : start)}
                 icon="↻"
-                label={`from ${formatShort(fromISODate(weeklySince ?? weeklyStartFor(todayISO())))}`}
-                ariaLabel="First week owed"
+                label={`first ${formatShort(fromISODate(weeklySince ?? start))}`}
+                ariaLabel="First cycle"
               />
             </div>
           </>
