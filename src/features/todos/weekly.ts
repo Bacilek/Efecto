@@ -75,6 +75,19 @@ function nextWeekdayISO(weekday: WeekdayIndex, todayISO: string): string {
   return toISODate(addDays(today, (weekday - weekdayIndex(today) + 7) % 7))
 }
 
+/**
+ * Which semester week a cycle *belongs* to, from its closing date.
+ *
+ * Not the week the closing date itself falls in: a cycle closing on Monday
+ * 28.09 runs from Tuesday 22.09, so it is week 2's work even though 28.09 is
+ * already week 3 — and numbering it 3 while the classes it follows still read
+ * `#L2` was simply wrong. Counted from the day the cycle opened, which is the
+ * week you are actually working through.
+ */
+export function cycleWeek(closingISO: string): number | null {
+  return semesterWeek(addDays(fromISODate(closingISO), -6))
+}
+
 /** A cycle whose closing day has passed — what turns its date red. */
 export function weeklyStale(dateISO: string, todayISO: string): boolean {
   return dateISO < todayISO
@@ -116,7 +129,7 @@ export function weeklyOccurrences(todos: Todo[], todayISO: string): WeeklyOccurr
 
     for (let n = 0; iso <= end && n <= cap; n++) {
       if (iso === anchor || !weekDone(todo, iso) || justTicked(todo, iso, todayISO)) {
-        result.push({ todo, date: iso, week: semesterWeek(fromISODate(iso)) })
+        result.push({ todo, date: iso, week: cycleWeek(iso) })
       }
       iso = toISODate(addDays(fromISODate(iso), 7))
     }

@@ -1,8 +1,6 @@
 import type { Todo } from '@/db/db'
-import { fromISODate } from '@/lib/date'
-import { semesterWeek } from '@/features/timetable/semester'
 import { OccurrenceRow } from './OccurrenceRow'
-import { weekDone, weeklyStale } from './weekly'
+import { cycleWeek, weekDone, weeklyStale } from './weekly'
 
 /**
  * One week a weekly task is owed for — `Jupyter #2 (16.09)`. The badge is the
@@ -29,7 +27,7 @@ export function WeeklyRow({
   onOpen: () => void
 }) {
   const done = weekDone(todo, date)
-  const week = semesterWeek(fromISODate(date))
+  const week = cycleWeek(date)
 
   return (
     <OccurrenceRow

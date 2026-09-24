@@ -352,6 +352,12 @@ is the whole point:
     the next closing date on or after today), so it only reddens the day
     after — and the next cycle appears the same moment, rather than leaving a
     gap with nothing current in it.
+  - The badge numbers the week the cycle **belongs to**, counted from the day
+    it opened (`cycleWeek` = `semesterWeek(closing - 6)`), not the week its
+    closing date falls in. A cycle closing Monday 28.09 runs from Tuesday
+    22.09, so it is week 2's work — numbering it 3 while the classes it
+    follows still read `#L2` was just wrong. The invariant it buys: the open
+    cycle's number always equals the semester week you are in.
 
 That second flavour is deliberately the *class* model — one template row, N
 accumulating occurrences — because it is the same kind of thing: work attached
