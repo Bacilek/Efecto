@@ -1,5 +1,6 @@
 import type { Lesson } from '@/db/db'
 import { SEMESTER_END, SEMESTER_START } from './semester'
+import { stampedCover } from './cover'
 
 /** How an `absenceLimit` lesson stands: how many skips are spent and how many are left. */
 export interface AbsenceState {
@@ -49,10 +50,12 @@ export function toggledAbsence(lesson: Lesson, dateISO: string): Partial<Lesson>
     return {
       absentDates: dates.filter((d) => d !== dateISO),
       coveredDates: covered.includes(dateISO) ? covered : [...covered, dateISO],
+      coveredAt: stampedCover(lesson, dateISO, true),
     }
   }
   return {
     absentDates: [...dates, dateISO].sort(),
     coveredDates: covered.filter((d) => d !== dateISO),
+    coveredAt: stampedCover(lesson, dateISO, false),
   }
 }

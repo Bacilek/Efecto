@@ -36,11 +36,28 @@ export function coverPatch(lesson: Lesson, dateISO: string, covered: boolean): P
         ? dates
         : [...dates, dateISO]
       : dates.filter((d) => d !== dateISO),
+    coveredAt: stampedCover(lesson, dateISO, covered),
   }
   if (covered && lesson.absentDates?.includes(dateISO)) {
     patch.absentDates = lesson.absentDates.filter((d) => d !== dateISO)
   }
   return patch
+}
+
+/**
+ * `coveredAt` with this date's tick time written or dropped. Kept in step with
+ * `coveredDates` by every writer, so the two never disagree about which
+ * occurrences are ticked.
+ */
+export function stampedCover(
+  lesson: Lesson,
+  dateISO: string,
+  covered: boolean,
+): Record<string, number> {
+  const at = { ...(lesson.coveredAt ?? {}) }
+  if (covered) at[dateISO] = Date.now()
+  else delete at[dateISO]
+  return at
 }
 
 /**
@@ -67,14 +84,19 @@ export interface LessonOccurrence {
 }
 
 /**
- * Was this lesson's cover state touched today? `coveredDates` only records
- * *which* occurrence dates are covered, not when the tap happened, so this
- * leans on the row's own `updatedAt` as a stand-in — imprecise if something
- * else about the same lesson was also edited today, but that only ever errs
- * towards keeping a row visible a little longer, never towards hiding one.
+ * Was *this occurrence* ticked today? It has to be asked per date, not per
+ * lesson: the timetable is a weekly template, so every week of the same class
+ * shares one row, and leaning on that row's `updatedAt` meant ticking this
+ * week's lecture dragged every earlier covered week of the same subject back
+ * onto Today, long after they should have gone.
+ *
+ * A covered date with no `coveredAt` entry predates the stamp, so it reads as
+ * ticked long ago — right for old data, which by definition wasn't ticked
+ * just now.
  */
-function coveredToday(lesson: Lesson, todayISO: string): boolean {
-  return toISODate(new Date(lesson.updatedAt)) === todayISO
+function coveredToday(lesson: Lesson, dateISO: string, todayISO: string): boolean {
+  const at = lesson.coveredAt?.[dateISO]
+  return at !== undefined && toISODate(new Date(at)) === todayISO
 }
 
 /**
@@ -104,7 +126,7 @@ export function lessonOccurrences(lessons: Lesson[], todayISO: string): LessonOc
     const iso = toISODate(d)
     for (const lesson of lessonsOn(lessons, iso)) {
       if (isTrackedSeminar(lesson) && iso !== todayISO) continue
-      if (iso === todayISO || !coverOn(lesson, iso) || coveredToday(lesson, todayISO)) {
+      if (iso === todayISO || !coverOn(lesson, iso) || coveredToday(lesson, iso, todayISO)) {
         result.push({ lesson, date: iso })
       }
     }

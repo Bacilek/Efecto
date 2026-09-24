@@ -101,6 +101,16 @@ export interface Lesson {
    * was seen, one way or another. Unlisted = not ticked yet.
    */
   coveredDates?: string[]
+  /**
+   * When each covered date was ticked, keyed by that date (`YYYY-MM-DD` →
+   * epoch ms). The lesson row is a weekly *template*, so its own `updatedAt`
+   * says nothing about which occurrence a tap belonged to — every week of the
+   * same class shares one row. Today's "stays visible for the rest of the day
+   * it was ticked" grace needs that per occurrence, the way a `Todo` has its
+   * own `doneAt`. A covered date with no entry here was ticked before this was
+   * recorded, so it reads as ticked long ago — which is what it is.
+   */
+  coveredAt?: Record<string, number>
   createdAt: number
   /** epoch ms of the last local write; the sync engine's conflict tie-break */
   updatedAt: number
