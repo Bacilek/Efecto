@@ -6,7 +6,10 @@ import { isWeekly, weekDone, type WeeklyOccurrence } from './weekly'
 export interface SubjectFolder {
   subject: string
   occurrences: LessonOccurrence[]
+  /** outstanding cycles — what the counts and the urgency dot are about */
   weekly: WeeklyOccurrence[]
+  /** the weekly tasks themselves, one row each: what exists for this subject */
+  weeklyTodos: Todo[]
   todos: Todo[]
 }
 
@@ -37,8 +40,14 @@ export function buildSubjectFolders(
       subject,
       occurrences: occurrences.filter((o) => o.lesson.name === subject),
       weekly: weekly.filter((o) => o.todo.subject === subject),
-      // A weekly task lives in the Weekly section as its occurrences, so it
-      // is kept out of the plain task list rather than appearing twice.
+      // One row per weekly task, not per outstanding cycle: the folder is the
+      // standing list of what this subject involves, so it answers "what is
+      // there" — the numbered cycles are the actual work and belong on Today.
+      weeklyTodos: todos
+        .filter((t) => t.subject === subject && isWeekly(t))
+        .sort((a, b) => a.title.localeCompare(b.title)),
+      // ...and therefore kept out of the plain task list, so neither shape
+      // shows twice.
       todos: sortSubjectTodos(todos.filter((t) => t.subject === subject && !isWeekly(t))),
     }))
 }

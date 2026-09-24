@@ -364,6 +364,12 @@ is the whole point:
     22.09, so it is week 2's work — numbering it 3 while the classes it
     follows still read `#L2` was just wrong. The invariant it buys: the open
     cycle's number always equals the semester week you are in.
+  - The numbered cycles show on **Today**, where they are the work. The
+    subject folder instead lists **one row per weekly task** — its own name,
+    no number, the closing weekday and how many cycles are outstanding —
+    because that view answers "what does this subject involve", not "what is
+    due". Tapping it opens the editor, so the folder is where they're kept in
+    order.
 
 That second flavour is deliberately the *class* model — one template row, N
 accumulating occurrences — because it is the same kind of thing: work attached

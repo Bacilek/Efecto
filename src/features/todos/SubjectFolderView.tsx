@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import type { Lesson, Todo } from '@/db/db'
 import { cn } from '@/lib/cn'
+import { DAY_LABELS } from '@/lib/date'
 import { EmptyState } from '@/ui/EmptyState'
 import { ClassRow } from './ClassRow'
-import { WeeklyRow } from './WeeklyRow'
-import { weekDone } from './weekly'
+import { weekDone, weeklyWeekday } from './weekly'
 import { isUrgent, openCountOf, type SubjectFolder } from './subjectFolder'
 
 /**
@@ -64,7 +64,6 @@ export function SubjectFolderView({
   today,
   onBack,
   onToggleCover,
-  onToggleWeek,
   onEditTodo,
   children,
 }: {
@@ -72,12 +71,11 @@ export function SubjectFolderView({
   today: string
   onBack: () => void
   onToggleCover: (lesson: Lesson, date: string, covered: boolean) => void
-  onToggleWeek: (todo: Todo, mondayISO: string, done: boolean) => void
   onEditTodo: (todo: Todo) => void
   /** the todo rows, rendered by the screen so they keep their full gestures */
   children: (todos: Todo[]) => ReactNode
 }) {
-  const { subject, occurrences, weekly, todos } = folder
+  const { subject, occurrences, weekly, weeklyTodos, todos } = folder
 
   return (
     <>
@@ -93,7 +91,7 @@ export function SubjectFolderView({
         <h1 className="min-w-0 flex-1 truncate font-display text-2xl font-medium">{subject}</h1>
       </header>
 
-      {occurrences.length === 0 && weekly.length === 0 && todos.length === 0 ? (
+      {occurrences.length === 0 && weeklyTodos.length === 0 && todos.length === 0 ? (
         <EmptyState
           title="Nothing for this subject yet."
           hint={'Add a weekly task with "+" — it lands here already tagged.'}
@@ -120,24 +118,38 @@ export function SubjectFolderView({
             </section>
           )}
 
-          {weekly.length > 0 && (
+          {weeklyTodos.length > 0 && (
             <section className="px-4 pb-3">
               <h2 className="pb-1 text-[11px] uppercase tracking-wider text-muted">Weekly</h2>
               <ul className="rounded-md border border-line-soft">
-                {weekly.map((o) => (
-                  <li
-                    key={`${o.todo.id}|${o.date}`}
-                    className="border-b border-line-soft last:border-b-0"
-                  >
-                    <WeeklyRow
-                      todo={o.todo}
-                      date={o.date}
-                      today={today}
-                      onToggle={() => onToggleWeek(o.todo, o.date, !weekDone(o.todo, o.date))}
-                      onOpen={() => onEditTodo(o.todo)}
-                    />
-                  </li>
-                ))}
+                {weeklyTodos.map((t) => {
+                  const open = weekly.filter(
+                    (o) => o.todo.id === t.id && !weekDone(o.todo, o.date),
+                  ).length
+                  return (
+                    <li key={t.id} className="border-b border-line-soft last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => onEditTodo(t)}
+                        className="flex w-full items-center gap-2 px-2 py-2 text-left text-sm"
+                      >
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 shrink-0 rounded-full',
+                            open > 0 ? 'bg-brass-dim' : 'bg-line',
+                          )}
+                        />
+                        <span className="min-w-0 flex-1 truncate text-parchment">{t.title}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-muted">
+                          every {DAY_LABELS[weeklyWeekday(t)]}
+                        </span>
+                        <span className="shrink-0 font-mono text-[11px] text-muted">
+                          {open === 0 ? 'all done' : `${open} open`}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             </section>
           )}

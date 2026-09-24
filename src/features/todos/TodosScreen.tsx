@@ -224,11 +224,6 @@ export function TodosScreen() {
     })
   }
 
-  /** Tick one week of a weekly task off — used by the subject views. */
-  async function toggleWeek(todo: Todo, mondayISO: string, done: boolean) {
-    await db.todos.update(todo.id, weeklyTogglePatch(todo, mondayISO, done, today))
-  }
-
   /** Tick a class occurrence off on its own date — used by the subject view. */
   async function toggleCover(lesson: Lesson, date: string, covered: boolean) {
     await db.lessons.update(lesson.id, coverPatch(lesson, date, covered))
@@ -402,7 +397,6 @@ export function TodosScreen() {
           today={today}
           onBack={() => setOpenSubject(null)}
           onToggleCover={(l, date, covered) => void toggleCover(l, date, covered)}
-          onToggleWeek={(t, monday, done) => void toggleWeek(t, monday, done)}
           onEditTodo={editTodo}
         >
           {(list) =>
