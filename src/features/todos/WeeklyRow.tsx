@@ -5,7 +5,10 @@ import { OccurrenceRow } from './OccurrenceRow'
 import { weekDone, weeklyStale } from './weekly'
 
 /**
- * One week a weekly task is owed for — `Interaktivní Osnova #W2 (14.09)`.
+ * One week a weekly task is owed for — `Jupyter #2 (16.09)`. The badge is the
+ * bare semester week: the letter on a class badge says which *kind* of class
+ * it is (L/S/D), and a task is none of them, so there is nothing for a letter
+ * to stand for.
  * Deliberately the same row as a class: it is the same kind of obligation,
  * owed for a week rather than by a date, and several can be outstanding at
  * once. Tapping the body edits the task itself, since the occurrence has
@@ -30,7 +33,7 @@ export function WeeklyRow({
 
   return (
     <OccurrenceRow
-      badge={<span className="shrink-0 font-mono text-xs text-brass">#W{week ?? ''}</span>}
+      badge={<span className="shrink-0 font-mono text-xs text-brass">#{week ?? ''}</span>}
       date={date}
       done={done}
       stale={!done && weeklyStale(date, today)}

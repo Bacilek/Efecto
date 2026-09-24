@@ -339,7 +339,8 @@ is the whole point:
   this week". No deadline at all; it is owed once a cycle and every cycle from
   `weeklySince` to the one we're inside that isn't in `completedDates` stays
   outstanding **side by side**, carried over and reddened exactly like a class
-  (`features/todos/weekly.ts`). It renders as `Jupyter #W2 (16.09)`.
+  (`features/todos/weekly.ts`). It renders as `Jupyter #2 (16.09)` — the bare semester week, since the
+  letter on a class badge stands for its kind (L/S/D) and a task has none.
   - A cycle closes on the weekday `weeklySince` itself falls on — **not** on a
     Sunday. A Monday-to-Sunday week would tell every subject that doesn't meet
     on a Monday the wrong thing: work for a Wednesday class is up on
