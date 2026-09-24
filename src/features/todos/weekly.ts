@@ -1,10 +1,9 @@
 import type { Todo } from '@/db/db'
 import { addDays, fromISODate, toISODate, weekdayIndex, type WeekdayIndex } from '@/lib/date'
 import {
-  semesterEnd,
-  semesterStart,
   semesterWeek,
   semesterWeekCount,
+  semesterWeekMonday,
 } from '@/features/timetable/semester'
 
 export interface WeeklyOccurrence {
@@ -46,7 +45,7 @@ function justTicked(todo: Todo, mondayISO: string, todayISO: string): boolean {
   )
 }
 
-/** The weekday a cycle starting on `sinceISO` closes on. */
+/** The weekday a cycle closes on, from any of its dates. */
 export function weekdayOf(sinceISO: string): WeekdayIndex {
   return weekdayIndex(fromISODate(sinceISO))
 }
@@ -57,35 +56,39 @@ export function weeklyWeekday(todo: Todo): WeekdayIndex {
 }
 
 /**
- * The cycle a weekly todo is *currently* inside: the next closing date on or
- * after today. A cycle runs up to its closing day inclusive, so the day the
- * week closes is still part of it — it only falls behind the day after.
+ * A cycle **is** a semester week, and the chosen weekday only says when
+ * inside it the work is up. That is the whole reason the numbering can be
+ * trusted: a cycle's number is just the semester week it is, so it lines up
+ * with the classes (`#L2`) by construction.
  *
- * Deliberately not `today.ts`'s `nextOccurrenceISO`, identical though the
- * maths is: `today.ts` already imports from here, and borrowing it back would
- * close a cycle between the two modules for three lines.
+ * Letting cycles float as free 7-day spans instead — each keyed to its own
+ * closing date — made the number a question with no good answer, because a
+ * span from Friday to Thursday belongs to two semester weeks at once and
+ * whichever end you counted from was wrong for some other closing weekday.
  */
-export function currentAnchor(todo: Todo, todayISO: string): string {
-  return nextWeekdayISO(weeklyWeekday(todo), todayISO)
+export function cycleDate(week: number, weekday: WeekdayIndex): string {
+  return toISODate(addDays(semesterWeekMonday(week), weekday))
 }
 
-/** The next date on or after `todayISO` landing on `weekday`. */
-function nextWeekdayISO(weekday: WeekdayIndex, todayISO: string): string {
-  const today = fromISODate(todayISO)
-  return toISODate(addDays(today, (weekday - weekdayIndex(today) + 7) % 7))
+/** Which semester week a cycle is — its number, and the badge. */
+export function cycleWeek(closingISO: string): number | null {
+  return semesterWeek(fromISODate(closingISO))
+}
+
+/** The semester week we're in, clamped into the term at either end. */
+function weekNow(todayISO: string): number {
+  const week = semesterWeek(fromISODate(todayISO))
+  if (week !== null) return week
+  return todayISO < cycleDate(1, 0) ? 1 : semesterWeekCount()
 }
 
 /**
- * Which semester week a cycle *belongs* to, from its closing date.
- *
- * Not the week the closing date itself falls in: a cycle closing on Monday
- * 28.09 runs from Tuesday 22.09, so it is week 2's work even though 28.09 is
- * already week 3 — and numbering it 3 while the classes it follows still read
- * `#L2` was simply wrong. Counted from the day the cycle opened, which is the
- * week you are actually working through.
+ * The cycle a weekly todo is currently inside — this semester week's. It stays
+ * current for the whole week, so a closing day that has already gone by shows
+ * as outstanding-and-late rather than being skipped for next week's.
  */
-export function cycleWeek(closingISO: string): number | null {
-  return semesterWeek(addDays(fromISODate(closingISO), -6))
+export function currentAnchor(todo: Todo, todayISO: string): string {
+  return cycleDate(weekNow(todayISO), weeklyWeekday(todo))
 }
 
 /** A cycle whose closing day has passed — what turns its date red. */
@@ -94,44 +97,29 @@ export function weeklyStale(dateISO: string, todayISO: string): boolean {
 }
 
 /**
- * Every cycle a weekly todo is still owed for, oldest first — the one it is
- * inside now, plus every earlier one nobody ticked, the way
- * `lessonOccurrences` accumulates uncovered classes. A cycle ticked just now
- * still shows, struck through, so a mistaken tap has something to undo.
+ * Every cycle a weekly todo is still owed for, oldest first — this semester
+ * week's, plus every earlier week nobody ticked, the way `lessonOccurrences`
+ * accumulates uncovered classes. A cycle ticked just now still shows, struck
+ * through, so a mistaken tap has something to undo.
  *
- * Cycles close on the weekday `weeklySince` falls on, not on a Sunday: a
- * subject that meets on Wednesday owes its week's work by Wednesday, and a
- * Monday-to-Sunday week would have said otherwise for every subject that
- * doesn't meet on a Monday.
- *
- * The start is clamped into the semester, and that clamp is not optional:
- * when `SEMESTER_START`/`SEMESTER_END` are moved on to the next term, a
- * surviving todo's `weeklySince` points into the old one, and an unclamped
- * walk would emit every cycle of the gap at once. Clamped, it restarts inside
- * the new term — the old term's `completedDates` are dates no new cycle ever
- * keys, so they sit there inert.
+ * Walking semester weeks rather than counting days forward is also what keeps
+ * a term change harmless: weeks outside the semester simply don't exist, so
+ * a todo surviving into the next term restarts at its week 1 with last term's
+ * `completedDates` sitting inert, keyed to dates no cycle ever asks for.
  */
 export function weeklyOccurrences(todos: Todo[], todayISO: string): WeeklyOccurrence[] {
-  const cap = semesterWeekCount()
-  const lastDay = toISODate(semesterEnd())
+  const now = weekNow(todayISO)
 
   const result: WeeklyOccurrence[] = []
   for (const todo of todos) {
     if (!isWeekly(todo)) continue
-    const anchor = currentAnchor(todo, todayISO)
-    // Nothing is owed past the end of term; before it, the cycle we're in.
-    const end = anchor < lastDay ? anchor : lastDay
-    let iso = todo.weeklySince!
-    // A start before the semester would spill the whole gap — walk it forward
-    // a week at a time until it lands inside.
-    const floor = toISODate(semesterStart())
-    while (iso < floor) iso = toISODate(addDays(fromISODate(iso), 7))
-
-    for (let n = 0; iso <= end && n <= cap; n++) {
-      if (iso === anchor || !weekDone(todo, iso) || justTicked(todo, iso, todayISO)) {
-        result.push({ todo, date: iso, week: cycleWeek(iso) })
+    const weekday = weeklyWeekday(todo)
+    const from = cycleWeek(todo.weeklySince!) ?? 1
+    for (let w = Math.max(from, 1); w <= now; w++) {
+      const iso = cycleDate(w, weekday)
+      if (w === now || !weekDone(todo, iso) || justTicked(todo, iso, todayISO)) {
+        result.push({ todo, date: iso, week: w })
       }
-      iso = toISODate(addDays(fromISODate(iso), 7))
     }
   }
   return result
@@ -179,13 +167,12 @@ export function weeklyRolloverPatch(todo: Todo, todayISO: string): Partial<Todo>
   return { done: false, doneAt: undefined }
 }
 
-/** The first closing date for a weekly todo set to close on `weekday`. */
+/** This semester week's cycle for `weekday` — where a new weekly task starts. */
 export function weeklyStartFor(weekday: WeekdayIndex, todayISO: string): string {
-  return nextWeekdayISO(weekday, todayISO)
+  return cycleDate(weekNow(todayISO), weekday)
 }
 
-/** Move a start to a different closing weekday, keeping its own week. */
+/** Move a start to a different closing weekday, keeping its semester week. */
 export function withWeekday(sinceISO: string, weekday: WeekdayIndex): string {
-  const diff = weekday - weekdayIndex(fromISODate(sinceISO))
-  return toISODate(addDays(fromISODate(sinceISO), diff))
+  return cycleDate(cycleWeek(sinceISO) ?? 1, weekday)
 }

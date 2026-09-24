@@ -354,16 +354,21 @@ is the whole point:
     it looked like saving had silently failed. A deliberately later start is
     still possible from the date chip, and the editor then says what it will
     do rather than leaving the task to vanish.
-  - The cycle runs **up to and including** its closing day (`currentAnchor` is
-    the next closing date on or after today), so it only reddens the day
-    after — and the next cycle appears the same moment, rather than leaving a
-    gap with nothing current in it.
-  - The badge numbers the week the cycle **belongs to**, counted from the day
-    it opened (`cycleWeek` = `semesterWeek(closing - 6)`), not the week its
-    closing date falls in. A cycle closing Monday 28.09 runs from Tuesday
-    22.09, so it is week 2's work — numbering it 3 while the classes it
-    follows still read `#L2` was just wrong. The invariant it buys: the open
-    cycle's number always equals the semester week you are in.
+  - **A cycle *is* a semester week**, and the closing weekday only says when
+    inside it the work is up (`cycleDate(week, weekday)`). That is what makes
+    the number trustworthy: `cycleWeek` is just the week it is, so it lines up
+    with the classes (`#L2`) by construction, and the open cycle always
+    carries the semester week you're in.
+    - Letting cycles float as free 7-day spans instead, each keyed to its own
+      closing date, made the number a question with no good answer: a span
+      from Friday to Thursday sits in two semester weeks at once, so counting
+      from either end was wrong for some other closing weekday. Both attempts
+      shipped and both were wrong — a Monday close read one week too high, and
+      correcting it by counting from the cycle's start made a Thursday close
+      read one week too low.
+    - This week's cycle stays current for the whole week, so a closing day
+      that has already gone by shows as outstanding and red rather than being
+      skipped for next week's.
   - The numbered cycles show on **Today**, where they are the work. The
     subject folder instead lists **one row per weekly task** — its own name,
     no number, the closing weekday and how many cycles are outstanding —
