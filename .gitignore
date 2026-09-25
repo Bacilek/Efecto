@@ -22,3 +22,6 @@ dev-dist
 
 # generated promo video and its assets — megabytes of media the app never ships
 /brag-output
+
+# Claude Code local state (worktrees, session scratch) — not project content
+/.claude
