@@ -194,6 +194,36 @@ export function LessonEditor({
           ))}
         </div>
 
+        <div className="mb-1 flex gap-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-muted">From</label>
+            <input
+              type="time"
+              value={start}
+              step={300}
+              onChange={(e) => setStart(e.target.value)}
+              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-muted">To</label>
+            <input
+              type="time"
+              value={end}
+              step={300}
+              onChange={(e) => setEnd(e.target.value)}
+              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
+            />
+          </div>
+        </div>
+        <p className="mb-3 h-4 text-[11px] text-missed">
+          {badRange
+            ? 'The end has to come after the start.'
+            : outOfWindow
+              ? `The timetable only covers ${minutesToTime(DAY_START)}–${minutesToTime(DAY_END)}.`
+              : ''}
+        </p>
+
         <label className="mb-1.5 block text-xs text-muted">Repeats</label>
         <div className="mb-3 flex gap-1.5">
           {WEEK_OPTIONS.map((o) => (
@@ -242,36 +272,6 @@ export function LessonEditor({
             +
           </Stepper>
         </div>
-
-        <div className="mb-1 flex gap-2">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted">From</label>
-            <input
-              type="time"
-              value={start}
-              step={300}
-              onChange={(e) => setStart(e.target.value)}
-              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted">To</label>
-            <input
-              type="time"
-              value={end}
-              step={300}
-              onChange={(e) => setEnd(e.target.value)}
-              className="w-full rounded-md border border-line bg-panel-2 px-3 py-2 font-mono text-sm outline-none focus:border-muted"
-            />
-          </div>
-        </div>
-        <p className="mb-3 h-4 text-[11px] text-missed">
-          {badRange
-            ? 'The end has to come after the start.'
-            : outOfWindow
-              ? `The timetable only covers ${minutesToTime(DAY_START)}–${minutesToTime(DAY_END)}.`
-              : ''}
-        </p>
 
         {lesson && occurrenceDate && (
           <OccurrenceRow
