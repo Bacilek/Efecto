@@ -146,13 +146,19 @@ export function RoutineEditor({
         )}
 
         <label className="mb-1.5 block text-xs text-muted">Repeats</label>
-        <div className="mb-4 flex gap-1.5">
+        <div className={cn('flex gap-1.5', timesPerWeek !== null && weeks !== null ? 'mb-1.5' : 'mb-4')}>
           {WEEK_OPTIONS.map((o) => (
             <Choice key={o.label} active={weeks === o.value} onClick={() => setWeeks(o.value)}>
               {o.label}
             </Choice>
           ))}
         </div>
+        {timesPerWeek !== null && weeks !== null && (
+          <p className="mb-4 text-[11px] text-dim">
+            On the other parity&apos;s week this target doesn&apos;t apply at all — no day counts
+            toward it, so nothing carries over.
+          </p>
+        )}
 
         <div className="flex items-center gap-2">
           <button
