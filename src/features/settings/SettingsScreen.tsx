@@ -117,8 +117,11 @@ export function SettingsScreen() {
           </button>
         </Row>
 
-        <Row label="Restore from backup" desc="Overwrites the current data with a file.">
-          <button className={btn} onClick={() => fileRef.current?.click()}>
+        <Row
+          label="Restore from backup"
+          desc="Overwrites the current data with a file, and resets this device's sync link — you'll choose a starting point again on next sign-in."
+        >
+          <button className={btnDanger} onClick={() => fileRef.current?.click()}>
             Import
           </button>
           <input

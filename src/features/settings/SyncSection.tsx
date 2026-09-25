@@ -8,7 +8,8 @@ import { useSyncState } from '@/sync/syncContext'
  * the app syncing.
  */
 export function SyncSection() {
-  const { phase, email, lastAt, error, sync, link, signIn, verifyCode, signOut } = useSyncState()
+  const { phase, email, lastAt, error, needsAttention, sync, link, signIn, verifyCode, signOut } =
+    useSyncState()
   const [draft, setDraft] = useState('')
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
@@ -28,7 +29,14 @@ export function SyncSection() {
 
   if (phase === 'signed-out') {
     return (
-      <Panel title="Sync" desc="Sign in to share routines, todos and the timetable across devices.">
+      <Panel
+        title="Sync"
+        desc={
+          needsAttention
+            ? "Signed out — this device was syncing before. Sign in again to pick up where it left off."
+            : 'Sign in to share routines, todos and the timetable across devices.'
+        }
+      >
         {sent ? (
           // The link opens in the system browser, which on a phone is not the
           // installed app — so the same email's code is offered here, and it
