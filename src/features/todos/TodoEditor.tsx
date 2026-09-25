@@ -170,51 +170,6 @@ export function TodoEditor({
           className="mb-3 w-full resize-none rounded-md border border-line bg-panel-2 px-3 py-2 text-sm outline-none focus:border-muted"
         />
 
-        <label className="mb-1.5 block text-xs text-muted">Plan</label>
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          <Chip active={plannedFor === null} onClick={() => setPlannedFor(null)}>
-            Someday
-          </Chip>
-          <Chip active={plannedFor === todayISO()} onClick={() => setPlannedFor(todayISO())}>
-            Today
-          </Chip>
-          <DateChip
-            value={plannedFor}
-            onChange={setPlannedFor}
-            excludeToday
-            ariaLabel="Plan for a date"
-          />
-        </div>
-
-        {/* Only meaningful once a day is picked — an unplanned todo has nothing
-            to be all-day or timed about. This is what the Calendar view reads:
-            all-day (or nothing) puts it in the all-day strip, a time range
-            places it as a block in the grid. */}
-        {plannedFor !== null && (
-          <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            <Chip active={allDay} onClick={() => setAllDay(!allDay)}>
-              All day
-            </Chip>
-            {!allDay && (
-              <>
-                <TimeChip
-                  value={startTime}
-                  onChange={setStartTime}
-                  placeholder="Start"
-                  ariaLabel="Start time"
-                />
-                <span className="text-xs text-dim">–</span>
-                <TimeChip
-                  value={endTime}
-                  onChange={setEndTime}
-                  placeholder="End"
-                  ariaLabel="End time"
-                />
-              </>
-            )}
-          </div>
-        )}
-
         {subjects.length > 0 && (
           <>
             <label className="mb-1.5 block text-xs text-muted">Subject</label>
@@ -353,6 +308,59 @@ export function TodoEditor({
                 </>
               )}
             </div>
+          </>
+        )}
+
+        {/* Only the one-off flavour needs this: a weekly cycle lands on Today by
+            itself (`weeklyOccurrences`) and a deadline shows there via Dues
+            (`isDue`), both regardless of `plannedFor` — so Plan would be a
+            control with no visible effect for either. */}
+        {repeat === 'none' && (
+          <>
+            <label className="mb-1.5 block text-xs text-muted">Plan</label>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              <Chip active={plannedFor === null} onClick={() => setPlannedFor(null)}>
+                Someday
+              </Chip>
+              <Chip active={plannedFor === todayISO()} onClick={() => setPlannedFor(todayISO())}>
+                Today
+              </Chip>
+              <DateChip
+                value={plannedFor}
+                onChange={setPlannedFor}
+                excludeToday
+                ariaLabel="Plan for a date"
+              />
+            </div>
+
+            {/* Only meaningful once a day is picked — an unplanned todo has
+                nothing to be all-day or timed about. This is what the Calendar
+                view reads: all-day (or nothing) puts it in the all-day strip,
+                a time range places it as a block in the grid. */}
+            {plannedFor !== null && (
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                <Chip active={allDay} onClick={() => setAllDay(!allDay)}>
+                  All day
+                </Chip>
+                {!allDay && (
+                  <>
+                    <TimeChip
+                      value={startTime}
+                      onChange={setStartTime}
+                      placeholder="Start"
+                      ariaLabel="Start time"
+                    />
+                    <span className="text-xs text-dim">–</span>
+                    <TimeChip
+                      value={endTime}
+                      onChange={setEndTime}
+                      placeholder="End"
+                      ariaLabel="End time"
+                    />
+                  </>
+                )}
+              </div>
+            )}
           </>
         )}
 
