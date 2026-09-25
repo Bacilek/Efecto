@@ -200,6 +200,9 @@ folders — and **All** — every task, as folder tiles.
   recurring one re-arms itself for its next cycle automatically once the day
   after it's ticked has passed; left unticked, it just stays overdue like any
   deadline rather than silently rolling forward and hiding a missed week.
+  Because a recurring todo already lands on Today by itself, its editor skips
+  the one-off **Plan** step (Someday/Today/On a date) entirely — there'd be
+  nothing for it to do.
 - **Classes.** Today's timetable lessons (plus any earlier one nobody's
   covered yet) sit at the top of the Today tab, grouped with same-subject
   todos into one collapsible row per subject — tap to expand and tick either
